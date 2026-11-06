@@ -1,0 +1,150 @@
+/* Neo-Brutalism Styles for Streamlit */
+:root {
+  --bb-border: 4px solid;
+  --bb-color: #d1e7ff;
+  --bb-bg: #0f172a;
+  --accent: #ff6b6b;
+  --accent2: #4ecdc4;
+  --accent3: #ffe66d;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, [data-testid="stApp"] {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bb-bg) !important;
+  color: var(--text) !important;
+  margin: 0;
+  padding: 0;
+}
+
+.stApp {
+  padding: 0 !important;
+}
+
+/* Main content area */
+.main .block-container {
+  padding: 1rem;
+  max-width: 100%;
+}
+
+/* Cards/blocks */
+.stButton > button, .stDownloadButton > button, stForm > button {
+  all: initial;
+  background: var(--bb-color);
+  border: var(--bb-border) var(--bb-color);
+  color: var(--text);
+  padding: 0.75rem 1.5rem;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  margin: 0.25rem 0;
+}
+
+.stButton > button:hover, .stDownloadButton > button:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bb-bg);
+}
+
+.stSelectbox > div > div > div, .stNumberInput > div > div > div, .stSlider > div {
+  background: var(--bb-color);
+  border: var(--bb-border) var(--bb-color);
+  color: var(--text);
+}
+
+/* Text inputs */
+.stTextInput > div > div > input, .stText_area > div > div > textarea {
+  background: var(--bb-color);
+  border: var(--bb-border) var(--bb-color);
+  color: var(--text);
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+/* File uploader */
+.stFileUploader > div {
+  background: var(--bb-color);
+  border: var(--bb-border) var(--bb-color);
+  padding: 1rem;
+}
+
+/* Labels */
+label {
+  color: var(--accent) !important;
+  font-weight: 700;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Progress bars */
+.stProgress > div > div {
+  background: var(--accent);
+  border: none;
+}
+
+/* Success/error messages */
+.stSuccess, .stError, .stWarning, .stInfo {
+  background: var(--bb-color);
+  border: var(--bb-border) var(--bb-color);
+  color: var(--text);
+}
+
+/* Primary action buttons */
+.stForm > button[kind="primary"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bb-bg);
+}
+
+.stForm > button[kind="primary"]:hover {
+  background: var(--bb-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Dividers */
+hr {
+  border: 1px solid var(--bb-color);
+}
+
+/* Expanders */
+.stExpander {
+  background: var(--bb-color);
+  border: var(--bb-border) var(--bb-color);
+}
+
+.stExpander > div > div {
+  background: var(--bb-bg);
+}
+
+/* Dataframes */
+.dataframe {
+  background: var(--bb-color);
+  border: var(--bb-border) var(--bb-color);
+}
+
+/* Radio items */
+div[data-testid="stRadio"] > div {
+  background: var(--bb-color);
+  border: var(--bb-border) var(--bb-color);
+}
+
+/* Selectbox options */
+.stOption {
+  background: var(--bb-color);
+  color: var(--text);
+}
+
+/* Focus states */
+.stButton > button:focus, .stSelectbox > div > div > div:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

@@ -1,0 +1,1 @@
+TASK: From MUST and SHOULD topics only, create (a) flashcards: {"front":"","back":"","topic":""} with one fact per card, back under 25 words; (b) a quick-revision sheet per unit: key definitions, formulas, syntax/commands, comparison tables, common mistakes. Maximum one page per unit. No filler.

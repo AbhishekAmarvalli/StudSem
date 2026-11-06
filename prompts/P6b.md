@@ -1,0 +1,1 @@
+TASK: Per unit, produce a question bank grouped by MUST / SHOULD / OPTIONAL. Match the requested question types and difficulty split. Include numericals and coding questions where the subject needs them. Each item: text, marks, type, difficulty, topic, source_tag. No duplicate concepts. For MCQs include 4 options, correct option, and a one-line reason.

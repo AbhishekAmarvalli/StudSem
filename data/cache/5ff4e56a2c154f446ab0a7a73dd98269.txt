@@ -1,0 +1,6 @@
+Unit 1: Introduction
+
+Topic: Arrays
+
+Question 1: What is an array?
+Marks: 5

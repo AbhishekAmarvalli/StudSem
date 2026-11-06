@@ -1,0 +1,36 @@
+# Exam Intelligence Workflow – requirements.txt
+# 100% free tier. No local LLMs, no paid APIs.
+
+# ── Core ───────────────────────────────────────────────────────────────────────
+streamlit>=1.35.0
+python-dotenv>=1.0.0
+
+# ── LangGraph / LangChain ──────────────────────────────────────────────────────
+langgraph>=0.1.0
+langchain>=0.2.0
+langchain-core>=0.2.0
+
+# ── LLM clients ───────────────────────────────────────────────────────────────
+google-generativeai>=0.7.0
+groq>=0.9.0
+requests>=2.31.0
+
+# ── File extraction ────────────────────────────────────────────────────────────
+pdfplumber>=0.11.0
+python-docx>=1.1.0
+python-pptx>=0.6.23
+
+# ── Data + validation ─────────────────────────────────────────────────────────
+pydantic>=2.0.0
+pandas>=2.0.0
+
+# ── Export ────────────────────────────────────────────────────────────────────
+reportlab>=4.2.0
+Jinja2>=3.1.0
+
+# ── Google Sheets (optional) ──────────────────────────────────────────────────
+gspread>=6.0.0
+google-auth>=2.29.0
+
+# ── Dev / test ────────────────────────────────────────────────────────────────
+pytest>=8.0.0

@@ -1,0 +1,3 @@
+TASK: Generate a mock paper that follows the exact pattern provided: total marks, sections, number of questions, marks each, internal choice, question types, difficulty split, duration.
+RULES: Marks must sum exactly. Weight topics by priority labels (MUST most, SHOULD some, OPTIONAL rarely). Mode=creative: write fresh in-syllabus questions in the style of past papers; Mode=strict: only reuse or minimally rephrase past/teacher questions. For each question give: id, section, text, marks, type, unit, topic, difficulty, source_tag (past:<year> | teacher | new-in-syllabus).
+JSON: {"header":{},"sections":[{"name":"","instructions":"","questions":[]}],"marks_check":{"total":0}}
