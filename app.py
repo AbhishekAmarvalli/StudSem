@@ -114,10 +114,14 @@ if page == "🏠 Main Workflow":
         col1, col2 = st.columns(2)
 
         with col1:
-            subject = st.text_input("Subject name", placeholder="e.g. Data Structures")
+            subject = st.text_input(
+                "Subject name",
+                placeholder="e.g. Data Structures, Financial Accounting, Contract Law",
+            )
             exam_type = st.selectbox(
                 "Exam type",
-                ["End-sem", "Mid-sem", "Unit test-MCQ", "Practical-Viva"],
+                ["End-sem", "Mid-sem", "Unit test-MCQ", "Practical-Viva", "Project viva"],
+                help="Practical and project vivas also produce spoken-style viva questions.",
             )
             exam_date = st.date_input(
                 "Exam date",
@@ -135,6 +139,30 @@ if page == "🏠 Main Workflow":
             al5 = st.text_input("5 marks", value="~150 words")
             al10 = st.text_input("10 marks", value="~350 words with diagram/code/example")
 
+        # Course context keeps the prompts right for non-engineering subjects.
+        ctx1, ctx2 = st.columns(2)
+        with ctx1:
+            course_level = st.selectbox(
+                "Course level",
+                [
+                    "School (Class 9-12)",
+                    "Diploma / Polytechnic",
+                    "Undergraduate",
+                    "Postgraduate",
+                    "Professional exam",
+                ],
+                index=2,
+            )
+        with ctx2:
+            discipline = st.selectbox(
+                "Discipline",
+                [
+                    "General", "Engineering", "Science", "Commerce", "Arts and Humanities",
+                    "Medicine and Health", "Law", "Management", "Education", "Agriculture",
+                ],
+                index=0,
+            )
+
         st.divider()
         st.subheader("📋 Exam Pattern")
         col3, col4, col5 = st.columns(3)
@@ -148,7 +176,7 @@ if page == "🏠 Main Workflow":
             internal_choice = st.text_input("Internal choice (e.g. any 5 of 7)", value="any 5 of 7")
             q_types = st.multiselect(
                 "Question types",
-                ["MCQ", "short", "long", "numerical", "coding", "viva"],
+                ["MCQ", "short", "long", "numerical", "coding", "case study", "diagram", "viva"],
                 default=["short", "long"],
             )
 
@@ -208,7 +236,7 @@ if page == "🏠 Main Workflow":
             want_flashcards = st.checkbox("Flashcards + formula sheet", value=True)
             want_viva = st.checkbox(
                 "Practical / viva questions",
-                value=exam_type == "Practical-Viva",
+                value="viva" in exam_type.lower(),
                 help="Spoken-style questions with the points your examiner wants to hear.",
             )
 
@@ -265,6 +293,8 @@ if page == "🏠 Main Workflow":
         state = {
             "subject": subject.strip(),
             "exam_type": exam_type,
+            "course_level": course_level,
+            "discipline": discipline,
             "exam_pattern": exam_pattern,
             "difficulty_split": {"easy": easy_pct, "medium": medium_pct, "hard": hard_pct},
             "unit_focus": unit_focus,
