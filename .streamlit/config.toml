@@ -1,0 +1,16 @@
+# StudSem – one cohesive theme (Principle 1: aesthetic-usability).
+# Colours are pinned here so the app looks identical locally and on Cloud;
+# ui.py only adds borders, shadows and layout on top of these tokens.
+[theme]
+base = "light"
+primaryColor = "#ffe600"            # the single accent used for primary actions
+backgroundColor = "#fdf8ec"         # cream paper
+secondaryBackgroundColor = "#ffffff" # cards, sidebar, inputs
+textColor = "#0a0a0a"               # ink (contrast 18:1 on cream)
+font = "sans serif"                 # system stack; Archivo Black is the only web font
+
+[client]
+toolbarMode = "minimal"             # fewer competing controls (Occam's razor)
+
+[browser]
+gatherUsageStats = false

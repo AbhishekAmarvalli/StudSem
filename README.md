@@ -35,7 +35,7 @@ SEPARATE: ANSWER GRADER
 
 Live at **https://abhishekamarvalli.github.io/StudSem/** (Settings → Pages → `main` / `/ (root)`).
 
-The exported HTML dashboard (`templates/dashboard.html`) and the Streamlit skin (`static/neo_brutalism.css`) use the same design language: cream paper, 4px black borders, hard offset shadows, sticker accents.
+The exported HTML dashboard (`templates/dashboard.html`), the local web UI (`webapp/app.css`) and the Streamlit app (`ui.py` + `.streamlit/config.toml`) share one design language: cream paper, hard ink borders, offset shadows, one accent per screen.
 
 ---
 
@@ -186,7 +186,12 @@ StudSem/
 │   ├── index.html          # Local UI markup (neo-brutalism)
 │   ├── app.css             # Local UI design system
 │   └── app.js              # Local UI logic (wizard, progress, results, grader)
-├── app.py                  # Streamlit UI + page routing
+├── app.py                  # Streamlit 4-step flow (upload → pattern → prefs → run)
+├── ui.py                   # Streamlit design layer: CSS, stepper, badges, parsing helpers
+├── pages/
+│   └── 1_Answer_Grader.py  # Grader page (shares session state with the main app)
+├── .streamlit/
+│   └── config.toml         # Theme tokens for Streamlit
 ├── graph.py                # LangGraph workflow definition
 ├── schemas.py              # Pydantic models (shared typed state)
 ├── scoring.py              # Topic scoring engine
@@ -211,8 +216,6 @@ StudSem/
 │   ├── P0.md … P9.md       # All runtime prompts (P6e = practical/viva set)
 ├── templates/
 │   └── dashboard.html      # Jinja2 HTML dashboard (neo-brutalism)
-├── static/
-│   └── neo_brutalism.css   # Streamlit neo-brutalism skin
 ├── index.html              # Standalone landing page (GitHub Pages)
 ├── data/                   # Cached knowledge bases (ephemeral on cloud)
 ├── tests/
