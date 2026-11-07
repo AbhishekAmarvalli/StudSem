@@ -66,10 +66,16 @@ def classify_documents(raw_docs: List[Dict]) -> ClassifierOutput:
                     "clean_text": d["text"],
                 })
 
-    return ClassifierOutput(documents=[
-        type("Doc", (), cd)() if not hasattr(cd, "role") else cd
-        for cd in classified_docs
-    ])
+    from schemas import ClassifiedDocument
+    docs = []
+    for cd in classified_docs:
+        if isinstance(cd, ClassifiedDocument):
+            docs.append(cd)
+        elif isinstance(cd, dict):
+            docs.append(ClassifiedDocument(**cd))
+        else:
+            docs.append(cd)
+    return ClassifierOutput(documents=docs)
 
 
 def classify_node(state: dict) -> dict:

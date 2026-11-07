@@ -28,6 +28,18 @@ SEPARATE: ANSWER GRADER
 
 ---
 
+## Landing Page (GitHub Pages)
+
+`index.html` is a standalone, dependency-free neo-brutalist site for the project — open it directly in a browser, or publish it:
+
+1. Repo → **Settings → Pages**
+2. **Source:** Deploy from a branch → `main` / `/ (root)`
+3. Save. The site goes live at `https://<username>.github.io/<repo>/`
+
+The exported HTML dashboard (`templates/dashboard.html`) and the Streamlit skin (`static/neo_brutalism.css`) use the same design language: cream paper, 4px black borders, hard offset shadows, sticker accents.
+
+---
+
 ## 1. Free API Key Setup
 
 | Service | URL | Notes |
@@ -90,7 +102,7 @@ For **github.dev** (browser IDE): edit files only; run via Codespaces.
 
 ```toml
 GEMINI_API_KEY = "your_key"
-GEMINI_MODEL = "gemini-1.5-flash-latest"
+GEMINI_MODEL = "gemini-2.0-flash"
 GROQ_API_KEY = "your_key"
 GROQ_MODEL = "llama3-8b-8192"
 OPENROUTER_API_KEY = "your_key"
@@ -176,7 +188,10 @@ exam-intelligence-workflow/
 ├── prompts/
 │   ├── P0.md … P9.md       # All runtime prompts
 ├── templates/
-│   └── dashboard.html      # Jinja2 HTML template
+│   └── dashboard.html      # Jinja2 HTML dashboard (neo-brutalism)
+├── static/
+│   └── neo_brutalism.css   # Streamlit neo-brutalism skin
+├── index.html              # Standalone landing page (GitHub Pages)
 ├── data/                   # Cached knowledge bases (ephemeral on cloud)
 ├── tests/
 │   ├── test_scoring.py

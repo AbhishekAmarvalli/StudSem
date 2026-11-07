@@ -4,3 +4,5 @@ venv/
 .env
 env.txt
 data/cache/
+
+.pytest_cache/

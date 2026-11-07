@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exam Intelligence Workflow — predict your paper, not your luck</title>
+<meta name="description" content="Evidence-based exam preparation and question prediction for B.Tech CSE. LangGraph + Gemini + Groq + Streamlit, 100% free tier.">
+<meta property="og:title" content="Exam Intelligence Workflow">
+<meta property="og:description" content="Drop in your syllabus, past papers and teacher hints. Get a ranked hit-list, a mock paper and a study plan that fits the days you have left.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23ffe600'/%3E%3Ctext x='50' y='74' font-size='68' font-family='Arial Black, sans-serif' text-anchor='middle' fill='%23000'%3EE%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --paper: #fdf8ec;
+    --white: #ffffff;
+    --yellow: #ffe600;
+    --pink: #ff5da2;
+    --cyan: #5ee7ff;
+    --lime: #c6ff4d;
+    --purple: #b39dff;
+    --orange: #ff8a3d;
+    --shadow: 8px 8px 0 var(--ink);
+    --line: 4px solid var(--ink);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(to right, rgba(10, 10, 10, .05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(10, 10, 10, .05) 1px, transparent 1px);
+    background-size: 34px 34px;
+    color: var(--ink);
+    font-family: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Archivo Black', 'Arial Black', ui-sans-serif, sans-serif;
+    font-weight: 400;
+    line-height: .95;
+    letter-spacing: -.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  p { margin: 0; }
+  a { color: inherit; }
+
+  :focus-visible {
+    outline: 3px solid var(--ink);
+    outline-offset: 3px;
+  }
+
+  .wrap {
+    width: min(1180px, 100% - 2.5rem);
+    margin-inline: auto;
+  }
+
+  /* ── Nav ─────────────────────────────────────────────────────────────── */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--paper);
+    border-bottom: var(--line);
+  }
+
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: .7rem 0;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    text-decoration: none;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 1rem;
+    letter-spacing: -.01em;
+  }
+
+  .brand-mark {
+    background: var(--yellow);
+    border: 3px solid var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+    padding: .1rem .4rem .2rem;
+    font-size: .9rem;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 1.4rem;
+    margin-left: auto;
+    font-size: .8rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+  }
+
+  .nav-links a {
+    text-decoration: none;
+    padding-bottom: 2px;
+    border-bottom: 3px solid transparent;
+  }
+
+  .nav-links a:hover { border-bottom-color: var(--pink); }
+
+  /* ── Buttons ─────────────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .8rem 1.25rem;
+    border: var(--line);
+    background: var(--yellow);
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: .85rem;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    text-decoration: none;
+    box-shadow: 6px 6px 0 var(--ink);
+    transition: transform .12s ease, box-shadow .12s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 9px 9px 0 var(--ink);
+  }
+
+  .btn:active {
+    transform: translate(4px, 4px);
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+
+  .btn.ghost { background: var(--white); }
+  .btn.pink { background: var(--pink); }
+  .btn.sm { padding: .55rem .9rem; font-size: .75rem; box-shadow: 4px 4px 0 var(--ink); }
+  .btn.sm:hover { box-shadow: 6px 6px 0 var(--ink); }
+
+  /* ── Hero ────────────────────────────────────────────────────────────── */
+  .hero {
+    display: grid;
+    grid-template-columns: 1.12fr .88fr;
+    gap: 3rem;
+    align-items: start;
+    padding: 4rem 0 3.5rem;
+  }
+
+  .eyebrow {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    padding: .4rem .7rem;
+    transform: rotate(-1.2deg);
+    margin-bottom: 1.4rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.5rem, 6.4vw, 5rem);
+    margin-bottom: 1.5rem;
+  }
+
+  .hl {
+    display: inline-block;
+    background: var(--yellow);
+    border: var(--line);
+    box-shadow: 5px 5px 0 var(--ink);
+    padding: 0 .25rem .1rem;
+    transform: rotate(-1deg);
+  }
+
+  .lede {
+    font-size: 1.12rem;
+    max-width: 46ch;
+    color: #262626;
+  }
+
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .hero-note {
+    margin-top: 1.6rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .74rem;
+    letter-spacing: .04em;
+    color: #4a4a4a;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border: var(--line);
+    box-shadow: var(--shadow);
+    background: var(--white);
+    margin-top: 2.5rem;
+  }
+
+  .stat {
+    padding: .85rem .9rem;
+    border-right: 3px solid var(--ink);
+  }
+
+  .stat:last-child { border-right: 0; }
+
+  .stat b {
+    display: block;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  .stat span {
+    display: block;
+    margin-top: .3rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .62rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #4a4a4a;
+  }
+
+  /* ── Sample ticket ───────────────────────────────────────────────────── */
+  .ticket {
+    border: var(--line);
+    background: var(--white);
+    box-shadow: var(--shadow);
+    transform: rotate(1.4deg);
+  }
+
+  .ticket-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .7rem 1rem;
+    background: var(--cyan);
+    border-bottom: var(--line);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+  }
+
+  .ticket-head span {
+    background: var(--ink);
+    color: var(--paper);
+    padding: .15rem .45rem;
+  }
+
+  .ticket-body { padding: .9rem 1rem 1.1rem; }
+
+  .t-row {
+    padding: .7rem 0;
+    border-bottom: 2px dashed rgba(10, 10, 10, .35);
+  }
+
+  .t-row:last-child { border-bottom: 0; padding-bottom: .2rem; }
+
+  .t-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .6rem;
+    font-size: .9rem;
+    font-weight: 700;
+  }
+
+  .t-top small {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .66rem;
+    font-weight: 400;
+    letter-spacing: .06em;
+    color: #5a5a5a;
+    text-transform: uppercase;
+  }
+
+  .t-pct {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 1rem;
+  }
+
+  .bar {
+    height: 13px;
+    margin: .4rem 0 .35rem;
+    border: 3px solid var(--ink);
+    background: #fff;
+  }
+
+  .bar i {
+    display: block;
+    height: 100%;
+    background: var(--pink);
+  }
+
+  .bar.cyan i { background: var(--cyan); }
+  .bar.lime i { background: var(--lime); }
+
+  .t-badge {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .6rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    border: 2px solid var(--ink);
+    padding: .1rem .35rem;
+  }
+
+  .t-badge.must { background: var(--pink); }
+  .t-badge.should { background: var(--yellow); }
+  .t-badge.opt { background: #e6e6e6; }
+
+  .ticket-foot {
+    border-top: var(--line);
+    padding: .55rem 1rem;
+    background: var(--paper);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .64rem;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: #444;
+  }
+
+  /* ── Ticker ──────────────────────────────────────────────────────────── */
+  .ticker {
+    overflow: hidden;
+    background: var(--ink);
+    color: var(--paper);
+    border-top: var(--line);
+    border-bottom: var(--line);
+  }
+
+  .ticker-track {
+    display: flex;
+    width: max-content;
+    gap: 2.5rem;
+    padding: .65rem 0;
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .76rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    animation: slide 30s linear infinite;
+  }
+
+  @keyframes slide {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* ── Sections ────────────────────────────────────────────────────────── */
+  section { padding: 4.5rem 0; scroll-margin-top: 80px; }
+
+  .section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .section-head h2 {
+    font-size: clamp(1.9rem, 4vw, 3rem);
+  }
+
+  .section-head p {
+    max-width: 38ch;
+    color: #3a3a3a;
+  }
+
+  .tag {
+    display: inline-block;
+    background: var(--pink);
+    border: 3px solid var(--ink);
+    box-shadow: 4px 4px 0 var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .64rem;
+    font-weight: 700;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    padding: .3rem .55rem;
+    margin-bottom: 1rem;
+  }
+
+  .tag.y { background: var(--yellow); }
+  .tag.c { background: var(--cyan); }
+  .tag.l { background: var(--lime); }
+  .tag.p { background: var(--purple); }
+
+  /* ── Flow grid ───────────────────────────────────────────────────────── */
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.4rem;
+  }
+
+  .step {
+    position: relative;
+    background: var(--white);
+    border: var(--line);
+    box-shadow: var(--shadow);
+    padding: 1.2rem 1.1rem 1.3rem;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+
+  .step:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: 11px 11px 0 var(--ink);
+  }
+
+  .step-num {
+    display: inline-block;
+    background: var(--yellow);
+    border: 3px solid var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    font-weight: 700;
+    padding: .1rem .4rem;
+    margin-bottom: .8rem;
+  }
+
+  .step:nth-child(2n) .step-num { background: var(--cyan); }
+  .step:nth-child(3n) .step-num { background: var(--lime); }
+  .step:nth-child(5n) .step-num { background: var(--purple); }
+
+  .step h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: .92rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: .5rem;
+  }
+
+  .step p { font-size: .88rem; color: #333; }
+
+  /* ── Output cards ────────────────────────────────────────────────────── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.4rem;
+  }
+
+  .card {
+    border: var(--line);
+    box-shadow: var(--shadow);
+    background: var(--white);
+    padding: 1.3rem;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+
+  .card:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: 11px 11px 0 var(--ink);
+  }
+
+  .card .ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: 3px solid var(--ink);
+    background: var(--yellow);
+    font-size: 1.15rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .card:nth-child(2) .ico { background: var(--cyan); }
+  .card:nth-child(3) .ico { background: var(--pink); }
+  .card:nth-child(4) .ico { background: var(--lime); }
+  .card:nth-child(5) .ico { background: var(--purple); }
+  .card:nth-child(6) .ico { background: var(--orange); }
+
+  .card h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-bottom: .45rem;
+  }
+
+  .card p { font-size: .88rem; color: #333; }
+
+  /* ── Stack ───────────────────────────────────────────────────────────── */
+  .stack {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.4rem;
+  }
+
+  .stack-card {
+    border: var(--line);
+    background: var(--white);
+    border-top: 12px solid var(--ink);
+    box-shadow: var(--shadow);
+    padding: 1.2rem;
+  }
+
+  .stack-card:nth-child(1) { border-top-color: var(--yellow); }
+  .stack-card:nth-child(2) { border-top-color: var(--pink); }
+  .stack-card:nth-child(3) { border-top-color: var(--cyan); }
+
+  .stack-card .role {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .64rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: #555;
+  }
+
+  .stack-card h3 {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 1.5rem;
+    margin: .3rem 0 .5rem;
+  }
+
+  .stack-card p { font-size: .88rem; color: #333; }
+
+  .stack-card a {
+    display: inline-block;
+    margin-top: .9rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-bottom: 3px solid var(--ink);
+  }
+
+  .stack-card a:hover { background: var(--yellow); }
+
+  .note {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .8rem;
+    border: var(--line);
+    background: var(--yellow);
+    box-shadow: 6px 6px 0 var(--ink);
+    padding: .9rem 1.1rem;
+    font-size: .9rem;
+    font-weight: 500;
+  }
+
+  .note b { font-family: 'JetBrains Mono', monospace; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; border: 2px solid var(--ink); padding: .15rem .4rem; background: var(--paper); }
+
+  /* ── Run ─────────────────────────────────────────────────────────────── */
+  .run-grid {
+    display: grid;
+    grid-template-columns: 1.1fr .9fr;
+    gap: 2.5rem;
+    align-items: start;
+  }
+
+  .terminal {
+    border: var(--line);
+    box-shadow: var(--shadow);
+    background: #111;
+    color: #eaf7d9;
+    overflow: hidden;
+  }
+
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .55rem .8rem;
+    background: var(--ink);
+    border-bottom: 3px solid #333;
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #000;
+  }
+
+  .dot.r { background: #ff5f57; }
+  .dot.y { background: #febc2e; }
+  .dot.g { background: #28c840; }
+
+  .terminal-bar span {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .64rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #8a8a8a;
+  }
+
+  pre {
+    margin: 0;
+    padding: 1.1rem 1rem 1.3rem;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .82rem;
+    line-height: 1.85;
+  }
+
+  pre .c { color: #7c7c7c; }
+  pre .cmd { color: var(--lime); }
+
+  .run-list {
+    list-style: none;
+    margin: 0 0 1.6rem;
+    padding: 0;
+    display: grid;
+    gap: .9rem;
+  }
+
+  .run-list li {
+    display: flex;
+    gap: .75rem;
+    font-size: .92rem;
+  }
+
+  .run-list .k {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border: 2px solid var(--ink);
+    background: var(--cyan);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .7rem;
+    font-weight: 700;
+  }
+
+  /* ── Footer ──────────────────────────────────────────────────────────── */
+  footer {
+    border-top: var(--line);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 3rem 0 2rem;
+    margin-top: 1rem;
+  }
+
+  .foot-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 2px solid rgba(253, 248, 236, .2);
+  }
+
+  .foot-brand {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: clamp(1.6rem, 4vw, 2.6rem);
+    line-height: .95;
+  }
+
+  .foot-brand em {
+    font-style: normal;
+    background: var(--yellow);
+    color: var(--ink);
+    padding: 0 .2rem;
+  }
+
+  .foot-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .72rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+
+  .foot-links a {
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+  }
+
+  .foot-links a:hover { border-bottom-color: var(--lime); }
+
+  .disclaimer {
+    padding-top: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .68rem;
+    letter-spacing: .05em;
+    color: #b9b9b9;
+    text-transform: uppercase;
+  }
+
+  /* ── Responsive ──────────────────────────────────────────────────────── */
+  @media (max-width: 1000px) {
+    .flow { grid-template-columns: repeat(2, 1fr); }
+    .cards, .stack { grid-template-columns: repeat(2, 1fr); }
+    .hero { grid-template-columns: 1fr; gap: 2.5rem; padding-top: 3rem; }
+    .run-grid { grid-template-columns: 1fr; }
+    .nav-links { display: none; }
+    .nav-inner .btn { margin-left: auto; }
+  }
+
+  @media (max-width: 620px) {
+    body { font-size: 16px; }
+    .wrap { width: calc(100% - 1.6rem); }
+    .flow, .cards, .stack { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .stat:nth-child(2) { border-right: 0; }
+    .stat:nth-child(1), .stat:nth-child(2) { border-bottom: 3px solid var(--ink); }
+    section { padding: 3rem 0; }
+    .ticket { transform: rotate(.7deg); }
+    .hero h1 { font-size: clamp(2.2rem, 11vw, 3rem); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .ticker-track { animation: none; }
+    .btn, .step, .card { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top">
+      <span class="brand-mark">EIW</span>
+      EXAM&nbsp;INTELLIGENCE
+    </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#flow">Flow</a>
+      <a href="#outputs">Outputs</a>
+      <a href="#stack">Stack</a>
+      <a href="#run">Run</a>
+    </nav>
+    <a class="btn sm" href="https://github.com/AbhishekAmarvalli/StudSem" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- Hero -->
+  <div class="wrap">
+    <section class="hero" style="padding-bottom:3rem">
+      <div>
+        <span class="eyebrow">B.Tech CSE · End-sem survival kit</span>
+        <h1>PREDICT YOUR PAPER.<br><span class="hl">NOT YOUR LUCK.</span></h1>
+        <p class="lede">
+          Drop in your syllabus, the last three years of question papers, and whatever
+          sir said in class. Get a ranked hit-list of topics, a full mock paper, and a
+          study plan that fits the days you actually have left.
+        </p>
+        <div class="cta-row">
+          <a class="btn" href="#run">Run it locally →</a>
+          <a class="btn ghost" href="https://github.com/AbhishekAmarvalli/StudSem" target="_blank" rel="noopener">View the repo ↗</a>
+        </div>
+        <p class="hero-note">No sign-up. No paid APIs. No local GPU. Bring two free keys.</p>
+
+        <div class="stats" role="list">
+          <div class="stat" role="listitem"><b>90%</b><span>Max likelihood claim</span></div>
+          <div class="stat" role="listitem"><b>₹0</b><span>Monthly API cost</span></div>
+          <div class="stat" role="listitem"><b>11</b><span>Pipeline nodes</span></div>
+          <div class="stat" role="listitem"><b>25</b><span>Tests passing</span></div>
+        </div>
+      </div>
+
+      <aside class="ticket" aria-label="Sample priority list output">
+        <div class="ticket-head">Predicted hit-list <span>Sample</span></div>
+        <div class="ticket-body">
+          <div class="t-row">
+            <div class="t-top"><span>Deadlock avoidance</span><span class="t-pct">88%</span></div>
+            <div class="bar"><i style="width:88%"></i></div>
+            <span class="t-badge must">Must study</span>
+            <small style="margin-left:.4rem;color:#666">Unit 3 · long answer</small>
+          </div>
+          <div class="t-row">
+            <div class="t-top"><span>Page replacement algos</span><span class="t-pct">76%</span></div>
+            <div class="bar cyan"><i style="width:76%"></i></div>
+            <span class="t-badge must">Must study</span>
+            <small style="margin-left:.4rem;color:#666">Unit 4 · numerical</small>
+          </div>
+          <div class="t-row">
+            <div class="t-top"><span>File allocation methods</span><span class="t-pct">54%</span></div>
+            <div class="bar lime"><i style="width:54%"></i></div>
+            <span class="t-badge should">Should study</span>
+            <small style="margin-left:.4rem;color:#666">Unit 5 · short</small>
+          </div>
+          <div class="t-row">
+            <div class="t-top"><span>Distributed OS basics</span><span class="t-pct">21%</span></div>
+            <div class="bar"><i style="width:21%;background:#d8d8d8"></i></div>
+            <span class="t-badge opt">Optional</span>
+            <small style="margin-left:.4rem;color:#666">Unit 6 · theory</small>
+          </div>
+        </div>
+        <div class="ticket-foot">Evidence: teacher hint + 4/5 past papers + syllabus weight</div>
+      </aside>
+    </section>
+  </div>
+
+  <!-- Ticker -->
+  <div class="ticker" aria-hidden="true">
+    <div class="ticker-track">
+      <span>Evidence over gut feel ✦ Free tier only ✦ No local LLM ✦ Syllabus weighted ✦ Teacher hints count ✦ Estimates capped at 90 ✦ Marks-checked mock papers ✦</span>
+      <span>Evidence over gut feel ✦ Free tier only ✦ No local LLM ✦ Syllabus weighted ✦ Teacher hints count ✦ Estimates capped at 90 ✦ Marks-checked mock papers ✦</span>
+    </div>
+  </div>
+
+  <!-- Flow -->
+  <div class="wrap">
+    <section id="flow">
+      <div class="section-head">
+        <div>
+          <span class="tag y">01 — The pipeline</span>
+          <h2>Eight steps.<br>Zero vibes.</h2>
+        </div>
+        <p>Every prediction is built from documents you actually handed over, then scored by a fixed formula — not by a model's mood.</p>
+      </div>
+
+      <div class="flow">
+        <article class="step">
+          <span class="step-num">01</span>
+          <h3>Upload</h3>
+          <p>PDF, DOCX, PPTX, TXT. Scanned pages and phone photos route through Gemini vision automatically.</p>
+        </article>
+        <article class="step">
+          <span class="step-num">02</span>
+          <h3>Classify</h3>
+          <p>Each file is tagged: syllabus, past paper, teacher priority, notes or pattern. You can override any label.</p>
+        </article>
+        <article class="step">
+          <span class="step-num">03</span>
+          <h3>Analyse</h3>
+          <p>Three analysts extract units, per-topic question frequency, repeats, and what the teacher kept stressing.</p>
+        </article>
+        <article class="step">
+          <span class="step-num">04</span>
+          <h3>Score</h3>
+          <p>40% teacher · 25% frequency · 15% syllabus weight · 10% recency · 10% question-type fit.</p>
+        </article>
+        <article class="step">
+          <span class="step-num">05</span>
+          <h3>Predict</h3>
+          <p>Topics get a likelihood, a label (must / should / optional) and the exact evidence behind the number.</p>
+        </article>
+        <article class="step">
+          <span class="step-num">06</span>
+          <h3>Generate</h3>
+          <p>Mock paper, question bank, model answers, flashcards, formula sheet and a day-by-day plan.</p>
+        </article>
+        <article class="step">
+          <span class="step-num">07</span>
+          <h3>Examine</h3>
+          <p>A second model audits the paper for marks totals, difficulty split and syllabus drift — up to two retries.</p>
+        </article>
+        <article class="step">
+          <span class="step-num">08</span>
+          <h3>Export</h3>
+          <p>Priority list and mock paper as PDF, a full HTML dashboard, or straight into Google Sheets.</p>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <!-- Outputs -->
+  <div class="wrap">
+    <section id="outputs">
+      <div class="section-head">
+        <div>
+          <span class="tag c">02 — What you get</span>
+          <h2>Six things<br>before the exam.</h2>
+        </div>
+        <p>Pick only what you need. The graph adds just the generator nodes you asked for, so a quick run stays quick.</p>
+      </div>
+
+      <div class="cards">
+        <article class="card">
+          <span class="ico">🎯</span>
+          <h3>Priority list</h3>
+          <p>Ranked topics with percentages, labels and a factor-by-factor breakdown you can argue with.</p>
+        </article>
+        <article class="card">
+          <span class="ico">📝</span>
+          <h3>Mock paper</h3>
+          <p>Built to your exact pattern — sections, internal choice, marks split and difficulty ratio.</p>
+        </article>
+        <article class="card">
+          <span class="ico">📚</span>
+          <h3>Question bank</h3>
+          <p>Unit-wise must / should / optional questions with sources tagged back to real papers.</p>
+        </article>
+        <article class="card">
+          <span class="ico">✅</span>
+          <h3>Model answers</h3>
+          <p>Answer skeletons sized to 2, 5 and 10 marks, each with a marking scheme.</p>
+        </article>
+        <article class="card">
+          <span class="ico">🃏</span>
+          <h3>Flashcards</h3>
+          <p>Rapid-fire recall cards plus a per-unit formula sheet for the walk to the hall.</p>
+        </article>
+        <article class="card">
+          <span class="ico">📅</span>
+          <h3>Study plan</h3>
+          <p>Days left × hours per day, allocated by priority — learn, practise, revise, mock.</p>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <!-- Stack -->
+  <div class="wrap">
+    <section id="stack">
+      <div class="section-head">
+        <div>
+          <span class="tag p">03 — The stack</span>
+          <h2>Three models.<br>Three free keys.</h2>
+        </div>
+        <p>Orchestrated with LangGraph, served with Streamlit, exported with ReportLab and Jinja2. Nothing on this list bills you.</p>
+      </div>
+
+      <div class="stack">
+        <article class="stack-card">
+          <span class="role">Primary analyst</span>
+          <h3>Gemini</h3>
+          <p>Reads documents, handles vision on scanned papers, and does the heavy structured extraction.</p>
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Get a free key ↗</a>
+        </article>
+        <article class="stack-card">
+          <span class="role">Examiner / QA</span>
+          <h3>Groq</h3>
+          <p>A different model checks the generated paper so mistakes don't come from the same brain twice.</p>
+          <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Get a free key ↗</a>
+        </article>
+        <article class="stack-card">
+          <span class="role">Fallback (optional)</span>
+          <h3>OpenRouter</h3>
+          <p>When Gemini's free quota runs dry mid-run, requests fail over to a <code>:free</code> model.</p>
+          <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get a free key ↗</a>
+        </article>
+      </div>
+
+      <div class="note">
+        <b>RAM friendly</b>
+        <span>Built for an 8 GB laptop — files are processed one at a time, never all at once in memory.</span>
+      </div>
+    </section>
+  </div>
+
+  <!-- Run -->
+  <div class="wrap">
+    <section id="run">
+      <div class="section-head">
+        <div>
+          <span class="tag l">04 — Get going</span>
+          <h2>Up in four<br>commands.</h2>
+        </div>
+        <p>Clone, install, drop your keys in <code>.env</code>, open the app. Works on Streamlit Cloud or Hugging Face Spaces too.</p>
+      </div>
+
+      <div class="run-grid">
+        <div class="terminal">
+          <div class="terminal-bar">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+            <span>bash — exam-intelligence</span>
+          </div>
+<pre><code><span class="c"># 1. clone it</span>
+<span class="cmd">git clone</span> https://github.com/AbhishekAmarvalli/StudSem.git
+<span class="cmd">cd</span> StudSem
+
+<span class="c"># 2. environment</span>
+<span class="cmd">python -m venv</span> venv
+<span class="cmd">source</span> venv/bin/activate   <span class="c"># Windows: venv\Scripts\activate</span>
+<span class="cmd">pip install</span> -r requirements.txt
+
+<span class="c"># 3. keys</span>
+<span class="cmd">cp</span> .env.example .env        <span class="c"># then paste your free keys</span>
+
+<span class="c"># 4. go</span>
+<span class="cmd">streamlit run</span> app.py</code></pre>
+        </div>
+
+        <div>
+          <ul class="run-list">
+            <li><span class="k">1</span><span>Grab a free <b>Gemini</b> key — it does the reading and the structured extraction.</span></li>
+            <li><span class="k">2</span><span>Grab a free <b>Groq</b> key — it audits every generated paper before you see it.</span></li>
+            <li><span class="k">3</span><span>OpenRouter is optional; add it and quota errors stop being your problem.</span></li>
+            <li><span class="k">4</span><span>Everything stays local. Cached text lives in <code>data/cache</code> and is safe to delete.</span></li>
+          </ul>
+          <a class="btn pink" href="https://github.com/AbhishekAmarvalli/StudSem#readme" target="_blank" rel="noopener">Full setup guide ↗</a>
+        </div>
+      </div>
+    </section>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">EXAM<br><em>INTELLIGENCE</em><br>WORKFLOW</div>
+      <nav class="foot-links" aria-label="Footer">
+        <a href="https://github.com/AbhishekAmarvalli/StudSem" target="_blank" rel="noopener">Repository ↗</a>
+        <a href="https://github.com/AbhishekAmarvalli/StudSem#readme" target="_blank" rel="noopener">Docs ↗</a>
+        <a href="https://share.streamlit.io" target="_blank" rel="noopener">Deploy ↗</a>
+        <a href="#top">Back to top ↑</a>
+      </nav>
+    </div>
+    <div class="disclaimer">
+      <span>Every percentage is an evidence-based estimate, capped at 90%. Nothing is guaranteed.</span>
+      <span>LangGraph · Gemini · Groq · Streamlit</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

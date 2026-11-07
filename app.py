@@ -24,25 +24,15 @@ try:
 except ImportError:
     pass
 
-# ── Neo-Brutalism CSS ─────────────────────────────────────────────────────────
-try:
-    css_path = os.path.join(os.path.dirname(__file__), 'static', 'neo_brutalism.css')
-    if os.path.exists(css_path):
-        with open(css_path) as f:
-            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-except Exception:
-    pass
+import streamlit as st
 
-# Streamlit secrets override .env
+# Streamlit secrets override .env (must come after import)
 try:
-    import streamlit as st
     for k, v in st.secrets.items():
         if isinstance(v, str):
             os.environ.setdefault(k, v)
 except Exception:
     pass
-
-import streamlit as st
 import datetime
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -58,6 +48,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── Neo-Brutalism CSS (injected after set_page_config) ───────────────────────
+try:
+    css_path = os.path.join(os.path.dirname(__file__), "static", "neo_brutalism.css")
+    if os.path.exists(css_path):
+        with open(css_path, encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+except Exception:
+    pass
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Sidebar navigation
 # ─────────────────────────────────────────────────────────────────────────────
@@ -66,6 +65,37 @@ page = st.sidebar.radio(
     ["🏠 Main Workflow", "✏️ Answer Grader"],
     index=0,
 )
+
+# ── API Key Setup (sidebar) ───────────────────────────────────────────────────
+with st.sidebar.expander("🔑 API Keys", expanded=not bool(os.getenv("GEMINI_API_KEY"))):
+    gemini_key = st.text_input(
+        "Gemini API Key",
+        value=os.getenv("GEMINI_API_KEY", ""),
+        type="password",
+        help="Get free key at https://aistudio.google.com/apikey",
+    )
+    groq_key = st.text_input(
+        "Groq API Key (for examiner)",
+        value=os.getenv("GROQ_API_KEY", ""),
+        type="password",
+        help="Get free key at https://console.groq.com",
+    )
+    openrouter_key = st.text_input(
+        "OpenRouter Key (fallback, optional)",
+        value=os.getenv("OPENROUTER_API_KEY", ""),
+        type="password",
+    )
+    if gemini_key:
+        os.environ["GEMINI_API_KEY"] = gemini_key
+    if groq_key:
+        os.environ["GROQ_API_KEY"] = groq_key
+    if openrouter_key:
+        os.environ["OPENROUTER_API_KEY"] = openrouter_key
+    # Reflect key status
+    if os.getenv("GEMINI_API_KEY"):
+        st.success("✅ Gemini key set")
+    else:
+        st.warning("⚠ Gemini key missing – workflow will fail")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # MAIN WORKFLOW PAGE

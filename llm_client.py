@@ -12,7 +12,8 @@ import json
 import logging
 from typing import Any, Dict, Optional
 
-import google.generativeai as genai
+from google import genai as genai_new
+from google.genai import types as genai_types
 from groq import Groq
 import requests
 
@@ -20,14 +21,28 @@ logger = logging.getLogger(__name__)
 
 # ── Load from env ──────────────────────────────────────────────────────────────
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash-latest")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama3-8b-8192")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct:free")
 
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
+_gemini_client = None
+
+def _get_gemini_client():
+    global _gemini_client
+    # Always re-read key from env so sidebar input is picked up at runtime
+    key = os.getenv("GEMINI_API_KEY", "")
+    if key and (_gemini_client is None):
+        _gemini_client = genai_new.Client(api_key=key)
+    elif key and _gemini_client is not None:
+        # Reinitialize if key changed
+        try:
+            if _gemini_client._api_client._api_key != key:  # type: ignore
+                _gemini_client = genai_new.Client(api_key=key)
+        except Exception:
+            pass
+    return _gemini_client
 
 MAX_RETRIES = 3
 BACKOFF_BASE = 2  # seconds
@@ -40,18 +55,34 @@ def _exponential_backoff(attempt: int) -> None:
 
 
 def _call_gemini(system_prompt: str, user_prompt: str, **kwargs) -> str:
-    model = genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        system_instruction=system_prompt,
-    )
-    response = model.generate_content(user_prompt)
+    key = os.getenv("GEMINI_API_KEY", "")
+    if not key:
+        raise RuntimeError("GEMINI_API_KEY not set. Add it in the sidebar or .env file.")
+    client = genai_new.Client(api_key=key)
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    contents = []
+    if system_prompt:
+        contents.append(genai_types.Content(
+            role="user",
+            parts=[genai_types.Part(text=f"[SYSTEM]\n{system_prompt}\n\n[USER]\n{user_prompt}")]
+        ))
+    else:
+        contents.append(genai_types.Content(
+            role="user",
+            parts=[genai_types.Part(text=user_prompt)]
+        ))
+    response = client.models.generate_content(model=model_name, contents=contents)
     return response.text
 
 
 def _call_groq(system_prompt: str, user_prompt: str, **kwargs) -> str:
-    client = Groq(api_key=GROQ_API_KEY)
+    key = os.getenv("GROQ_API_KEY", "")
+    if not key:
+        raise RuntimeError("GROQ_API_KEY not set.")
+    model = os.getenv("GROQ_MODEL", "llama3-8b-8192")
+    client = Groq(api_key=key)
     chat = client.chat.completions.create(
-        model=GROQ_MODEL,
+        model=model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},

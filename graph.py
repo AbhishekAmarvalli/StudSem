@@ -92,24 +92,23 @@ def build_graph(outputs_wanted: List[str]) -> StateGraph:
         g.add_edge("predictor", "study_plan")
         generator_nodes.append("study_plan")
 
-    # Terminal edges
-    terminal_nodes = generator_nodes if generator_nodes else ["predictor"]
-    for node in terminal_nodes:
-        # Only add terminal edge for leaf nodes (no outgoing edges set yet)
-        # LangGraph handles this automatically at END
-        pass
+    # Terminal edges – only leaf nodes (not sources of other edges) get END
+    # Build set of nodes that are sources of an explicit edge
+    source_nodes = set()
+    if "mock_paper" in outputs_wanted or "model_answers" in outputs_wanted:
+        source_nodes.add("mock_paper")
+        source_nodes.add("examiner")
+    if "model_answers" in outputs_wanted:
+        source_nodes.add("examiner")
 
     # If no generators, end after predictor
     if not generator_nodes:
         g.add_edge("predictor", END)
     else:
+        # Leaf nodes are those in generator_nodes that are not sources
         for node in generator_nodes:
-            # Nodes not explicitly connected to another generator get END
-            if node not in ["mock_paper"] or "model_answers" not in outputs_wanted:
-                try:
-                    g.add_edge(node, END)
-                except Exception:
-                    pass  # edge already set
+            if node not in source_nodes:
+                g.add_edge(node, END)
 
     return g.compile()
 

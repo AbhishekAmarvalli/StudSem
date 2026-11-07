@@ -11,7 +11,7 @@ langchain>=0.2.0
 langchain-core>=0.2.0
 
 # ── LLM clients ───────────────────────────────────────────────────────────────
-google-generativeai>=0.7.0
+google-genai>=1.0.0
 groq>=0.9.0
 requests>=2.31.0
 

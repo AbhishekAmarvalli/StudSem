@@ -5,93 +5,409 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Exam Intelligence – {{ subject }}</title>
 <style>
-  :root { --blue: #4A90D9; --green: #27ae60; --amber: #f39c12; --red: #e74c3c; --bg: #f5f7fa; }
-  body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 1rem 2rem; color: #333; }
-  h1 { color: var(--blue); border-bottom: 3px solid var(--blue); padding-bottom: .5rem; }
-  h2 { color: #444; margin-top: 2rem; }
-  .badge { display: inline-block; padding: .2rem .6rem; border-radius: 999px; font-size:.8rem; font-weight:700; color:#fff; }
-  .must { background: var(--red); }
-  .should { background: var(--amber); }
-  .optional { background: #95a5a6; }
-  .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.1); padding: 1rem; margin-bottom: 1rem; }
-  .bar-wrap { background: #eee; border-radius: 4px; height: 10px; margin-top: 4px; }
-  .bar { height: 10px; border-radius: 4px; background: var(--blue); }
-  table { border-collapse: collapse; width: 100%; }
-  th { background: var(--blue); color: #fff; padding: .5rem; text-align: left; }
-  td { padding: .4rem .5rem; border-bottom: 1px solid #eee; }
-  tr:nth-child(even) td { background: #f9f9f9; }
-  .warn { background: #fff3cd; border-left: 4px solid var(--amber); padding: .5rem 1rem; border-radius: 4px; margin-bottom:.5rem; }
-  details summary { cursor: pointer; font-weight: bold; padding: .5rem 0; }
+  :root {
+    --ink: #0a0a0a;
+    --paper: #fdf8ec;
+    --white: #ffffff;
+    --yellow: #ffe600;
+    --pink: #ff5da2;
+    --cyan: #5ee7ff;
+    --lime: #c6ff4d;
+    --purple: #b39dff;
+    --line: 4px solid var(--ink);
+    --shadow: 8px 8px 0 var(--ink);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 2.5rem 1.25rem 4rem;
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(to right, rgba(10,10,10,.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(10,10,10,.05) 1px, transparent 1px);
+    background-size: 34px 34px;
+    color: var(--ink);
+    font-family: 'Space Grotesk', 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .wrap { width: min(1000px, 100%); margin-inline: auto; }
+
+  h1, h2, h3 {
+    font-family: 'Archivo Black', 'Arial Black', ui-sans-serif, sans-serif;
+    font-weight: 400;
+    letter-spacing: -.02em;
+    line-height: .98;
+    margin: 0;
+  }
+
+  /* ── Masthead ── */
+  .masthead {
+    border: var(--line);
+    background: var(--white);
+    box-shadow: var(--shadow);
+    padding: 1.6rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .kicker {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: .66rem;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    padding: .35rem .6rem;
+    transform: rotate(-1deg);
+    margin-bottom: 1rem;
+  }
+
+  .masthead h1 { font-size: clamp(1.9rem, 5vw, 3rem); }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: 1.1rem;
+  }
+
+  .meta span {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: .68rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    border: 3px solid var(--ink);
+    padding: .2rem .5rem;
+    background: var(--yellow);
+  }
+
+  .meta span:nth-child(2) { background: var(--cyan); }
+  .meta span:nth-child(3) { background: var(--lime); }
+
+  /* ── Section headings ── */
+  h2 {
+    font-size: clamp(1.2rem, 3vw, 1.6rem);
+    margin: 2.6rem 0 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+  }
+
+  h2::after {
+    content: "";
+    flex: 1;
+    height: 4px;
+    background: var(--ink);
+  }
+
+  h3 { font-size: 1rem; margin: 1.6rem 0 .8rem; }
+
+  /* ── Warnings ── */
+  .warn {
+    border: var(--line);
+    background: var(--yellow);
+    box-shadow: 5px 5px 0 var(--ink);
+    padding: .75rem 1rem;
+    margin-bottom: .8rem;
+    font-size: .9rem;
+    font-weight: 500;
+  }
+
+  /* ── Topic cards ── */
+  .topic {
+    border: var(--line);
+    background: var(--white);
+    box-shadow: var(--shadow);
+    padding: 1.1rem 1.1rem 1.2rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .topic-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .6rem;
+  }
+
+  .topic-top strong { font-size: 1.05rem; }
+
+  .unit {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: .66rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #555;
+  }
+
+  .pct {
+    margin-left: auto;
+    font-family: 'Archivo Black', 'Arial Black', sans-serif;
+    font-size: 1.3rem;
+    line-height: 1;
+  }
+
+  .badge {
+    display: inline-block;
+    border: 3px solid var(--ink);
+    padding: .05rem .45rem;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: .62rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .must { background: var(--pink); }
+  .should { background: var(--yellow); }
+  .optional { background: #e3e3e3; }
+
+  .bar-wrap {
+    height: 14px;
+    border: 3px solid var(--ink);
+    background: #fff;
+    margin: .65rem 0 .6rem;
+  }
+
+  .bar { height: 100%; background: var(--pink); }
+  .bar.cyan { background: var(--cyan); }
+  .bar.lime { background: var(--lime); }
+
+  .topic small {
+    display: block;
+    font-size: .84rem;
+    color: #3a3a3a;
+  }
+
+  .topic small.evidence { margin-bottom: .2rem; }
+
+  .types {
+    margin-top: .5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+  }
+
+  .types span {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: .62rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border: 2px solid var(--ink);
+    padding: .05rem .35rem;
+    background: var(--cyan);
+  }
+
+  details { margin-top: .8rem; }
+
+  summary {
+    cursor: pointer;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    display: inline-block;
+    border-bottom: 3px solid var(--ink);
+  }
+
+  /* ── Tables ── */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: .8rem;
+    border: 3px solid var(--ink);
+    background: var(--white);
+    font-size: .86rem;
+  }
+
+  th {
+    background: var(--ink);
+    color: var(--paper);
+    padding: .45rem .6rem;
+    text-align: left;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: .66rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+
+  td {
+    padding: .45rem .6rem;
+    border-bottom: 2px solid rgba(10,10,10,.15);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: 0; }
+
+  /* ── Mock paper ── */
+  .section-note {
+    font-size: .88rem;
+    font-style: italic;
+    color: #4a4a4a;
+    margin: .2rem 0 1rem;
+  }
+
+  .q {
+    border: var(--line);
+    background: var(--white);
+    box-shadow: 5px 5px 0 var(--ink);
+    padding: .9rem 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .q-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-bottom: .5rem;
+  }
+
+  .q-head span {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: .62rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    border: 2px solid var(--ink);
+    padding: .05rem .35rem;
+  }
+
+  .q-head .marks { background: var(--yellow); }
+  .q-head .qtype { background: var(--cyan); }
+  .q-head .diff { background: var(--lime); }
+
+  .q-source {
+    display: block;
+    margin-top: .5rem;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: .64rem;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: #666;
+  }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 3rem;
+    border-top: var(--line);
+    padding-top: 1.2rem;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: .68rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #4a4a4a;
+  }
+
+  @media (max-width: 620px) {
+    body { padding: 1.25rem .75rem 3rem; }
+    .masthead { padding: 1.1rem; }
+    .pct { width: 100%; margin-left: 0; }
+  }
+
+  @media print {
+    body { background: #fff; }
+    .topic, .q, .masthead, .warn { box-shadow: none; page-break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
-<h1>📚 Exam Intelligence – {{ subject }}</h1>
-<p><b>Exam type:</b> {{ exam_type }} | <b>Mode:</b> {{ mode }}</p>
+<div class="wrap">
 
-{% if warnings %}
-<h2>⚠ Warnings</h2>
-{% for w in warnings %}
-<div class="warn">{{ w }}</div>
-{% endfor %}
-{% endif %}
+  <header class="masthead">
+    <span class="kicker">Exam intelligence · priority report</span>
+    <h1>{{ subject }}</h1>
+    <div class="meta">
+      <span>Exam: {{ exam_type }}</span>
+      <span>Mode: {{ mode }}</span>
+      <span>Estimates capped at 90%</span>
+    </div>
+  </header>
 
-{% if predictions %}
-<h2>🎯 Priority Topics</h2>
-{% for t in predictions %}
-<div class="card">
-  <strong>{{ t.topic }}</strong> (Unit {{ t.unit }})
-  <span class="badge {% if t.label == 'MUST STUDY' %}must{% elif t.label == 'SHOULD STUDY' %}should{% else %}optional{% endif %}">
-    {{ t.label }}
-  </span>
-  <span style="float:right; font-weight:700;">{{ t.percentage }}%</span>
-  <div class="bar-wrap"><div class="bar" style="width:{{ t.percentage }}%"></div></div>
-  <small>{{ t.evidence }}</small><br/>
-  <small>Types: {{ t.likely_question_types | join(', ') }}</small>
-  <details>
-    <summary>Factor breakdown</summary>
-    <table>
-      <tr><th>Factor</th><th>Value</th></tr>
-      <tr><td>Teacher priority</td><td>{{ t.factors.teacher }}</td></tr>
-      <tr><td>Past frequency</td><td>{{ t.factors.frequency }}</td></tr>
-      <tr><td>Syllabus weight</td><td>{{ t.factors.syllabus_weight }}</td></tr>
-      <tr><td>Recency</td><td>{{ t.factors.recency }}</td></tr>
-      <tr><td>Question-type fit</td><td>{{ t.factors.type_fit }}</td></tr>
-    </table>
-  </details>
-</div>
-{% endfor %}
-{% endif %}
-
-{% if study_plan %}
-<h2>📅 Study Plan</h2>
-<table>
-  <tr><th>Date</th><th>Hours</th><th>Topics</th></tr>
-  {% for day in study_plan.days %}
-  <tr>
-    <td>{{ day.date }}</td>
-    <td>{{ day.hours }}</td>
-    <td>{% for b in day.blocks %}{{ b.topic }} ({{ b.activity }}, {{ b.minutes }}min)<br/>{% endfor %}</td>
-  </tr>
+  {% if warnings %}
+  <h2>Warnings</h2>
+  {% for w in warnings %}
+  <div class="warn">⚠ {{ w }}</div>
   {% endfor %}
-</table>
-{% endif %}
+  {% endif %}
 
-{% if mock_paper %}
-<h2>📝 Mock Paper</h2>
-{% for section in mock_paper.sections %}
-<h3>{{ section.name }}</h3>
-<p><i>{{ section.instructions }}</i></p>
-{% for q in section.questions %}
-<div class="card">
-  <b>Q{{ q.id }}.</b> [{{ q.marks }} marks | {{ q.type }} | {{ q.difficulty }}]<br/>
-  {{ q.text }}
-  <small style="color:#888;">Source: {{ q.source_tag }} | Topic: {{ q.topic }}</small>
+  {% if predictions %}
+  <h2>Priority topics</h2>
+  {% for t in predictions %}
+  <article class="topic">
+    <div class="topic-top">
+      <strong>{{ t.topic }}</strong>
+      <span class="unit">Unit {{ t.unit }}</span>
+      <span class="badge {% if t.label == 'MUST STUDY' %}must{% elif t.label == 'SHOULD STUDY' %}should{% else %}optional{% endif %}">{{ t.label }}</span>
+      <span class="pct">{{ t.percentage }}%</span>
+    </div>
+    <div class="bar-wrap">
+      <div class="bar {% if t.percentage and t.percentage >= 75 %}{% elif t.percentage and t.percentage >= 50 %}cyan{% else %}lime{% endif %}" style="width:{{ t.percentage }}%"></div>
+    </div>
+    <small class="evidence">{{ t.evidence }}</small>
+    {% if t.likely_question_types %}
+    <div class="types">
+      {% for qt in t.likely_question_types %}<span>{{ qt }}</span>{% endfor %}
+    </div>
+    {% endif %}
+    <details>
+      <summary>Factor breakdown</summary>
+      <table>
+        <tr><th>Factor</th><th>Value</th></tr>
+        <tr><td>Teacher priority</td><td>{{ t.factors.teacher }}</td></tr>
+        <tr><td>Past frequency</td><td>{{ t.factors.frequency }}</td></tr>
+        <tr><td>Syllabus weight</td><td>{{ t.factors.syllabus_weight }}</td></tr>
+        <tr><td>Recency</td><td>{{ t.factors.recency }}</td></tr>
+        <tr><td>Question-type fit</td><td>{{ t.factors.type_fit }}</td></tr>
+      </table>
+      {% if t.confidence_note %}<small style="display:block;margin-top:.6rem">{{ t.confidence_note }}</small>{% endif %}
+    </details>
+  </article>
+  {% endfor %}
+  {% endif %}
+
+  {% if study_plan %}
+  <h2>Study plan</h2>
+  <table>
+    <tr><th>Date</th><th>Hours</th><th>Blocks</th></tr>
+    {% for day in study_plan.days %}
+    <tr>
+      <td>{{ day.date }}</td>
+      <td>{{ day.hours }}</td>
+      <td>{% for b in day.blocks %}{{ b.topic }} <span style="font-family:'JetBrains Mono',monospace;font-size:.7rem;color:#666">({{ b.activity }}, {{ b.minutes }} min)</span><br/>{% endfor %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  {% if mock_paper %}
+  <h2>Mock paper</h2>
+  {% for section in mock_paper.sections %}
+  <h3>{{ section.name }}</h3>
+  <p class="section-note">{{ section.instructions }}</p>
+  {% for q in section.questions %}
+  <article class="q">
+    <div class="q-head">
+      <span>Q{{ q.id }}</span>
+      <span class="marks">{{ q.marks }} marks</span>
+      <span class="qtype">{{ q.type }}</span>
+      <span class="diff">{{ q.difficulty }}</span>
+    </div>
+    <div>{{ q.text }}</div>
+    <span class="q-source">Source: {{ q.source_tag }} · Topic: {{ q.topic }}</span>
+  </article>
+  {% endfor %}
+  {% endfor %}
+  {% endif %}
+
+  <footer>
+    Generated by Exam Intelligence Workflow · All values are evidence-based estimates, capped at 90% · Never guaranteed
+  </footer>
+
 </div>
-{% endfor %}
-{% endfor %}
-{% endif %}
-
-<hr/>
-<small style="color:#aaa;">Generated by Exam Intelligence Workflow. All estimates are evidence-based, capped at 90%. Never guaranteed.</small>
 </body>
 </html>

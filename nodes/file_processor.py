@@ -89,16 +89,23 @@ def _extract_image(data: bytes, mime: str = "image/jpeg") -> str:
 
 def _extract_via_gemini_vision(data: bytes, mime: str = "application/pdf") -> str:
     """Send file to Gemini vision and get back clean text."""
-    import google.generativeai as genai
+    from google import genai as genai_new
+    from google.genai import types as genai_types
 
-    model = genai.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-1.5-flash-latest"))
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+    client = genai_new.Client(api_key=api_key)
+
     prompt = (
         "Transcribe this document faithfully. Preserve question numbers, "
         "marks in brackets, unit headings, and all text. "
         "Flag illegible words as [unclear]. Return only the transcribed text, no commentary."
     )
-    part = {"mime_type": mime, "data": data}
-    response = model.generate_content([prompt, part])
+    part = genai_types.Part.from_bytes(data=data, mime_type=mime)
+    response = client.models.generate_content(
+        model=model_name,
+        contents=[prompt, part]
+    )
     return response.text
 
 
