@@ -1,4 +1,4 @@
-# Exam Intelligence Workflow
+# StudSem — Exam Intelligence Workflow
 
 > Evidence-based exam preparation and prediction for B.Tech CSE students.  
 > Stack: **LangGraph + Gemini (primary) + Groq (examiner) + Streamlit**  
@@ -161,7 +161,7 @@ Tests cover:
 ## 9. Project Structure
 
 ```
-exam-intelligence-workflow/
+StudSem/
 ├── app.py                  # Streamlit UI + page routing
 ├── graph.py                # LangGraph workflow definition
 ├── schemas.py              # Pydantic models (shared typed state)

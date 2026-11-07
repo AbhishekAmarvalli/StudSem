@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 # Page config
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Exam Intelligence Workflow",
+    page_title="StudSem — Exam Intelligence Workflow",
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -101,7 +101,7 @@ with st.sidebar.expander("🔑 API Keys", expanded=not bool(os.getenv("GEMINI_AP
 # MAIN WORKFLOW PAGE
 # ─────────────────────────────────────────────────────────────────────────────
 if page == "🏠 Main Workflow":
-    st.title("🎓 Exam Intelligence Workflow")
+    st.title("🎓 StudSem")
     st.caption(
         "Evidence-based exam preparation for B.Tech CSE. "
         "All percentages are likelihood *estimates*, capped at 90%. "

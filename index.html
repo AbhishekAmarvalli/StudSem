@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Exam Intelligence Workflow — predict your paper, not your luck</title>
+<title>StudSem — predict your paper, not your luck</title>
 <meta name="description" content="Evidence-based exam preparation and question prediction for B.Tech CSE. LangGraph + Gemini + Groq + Streamlit, 100% free tier.">
-<meta property="og:title" content="Exam Intelligence Workflow">
+<meta property="og:title" content="StudSem — Exam Intelligence Workflow">
 <meta property="og:description" content="Drop in your syllabus, past papers and teacher hints. Get a ranked hit-list, a mock paper and a study plan that fits the days you have left.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23ffe600'/%3E%3Ctext x='50' y='74' font-size='68' font-family='Arial Black, sans-serif' text-anchor='middle' fill='%23000'%3EE%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -693,6 +693,15 @@
     padding: 0 .2rem;
   }
 
+  .foot-sub {
+    margin-top: .6rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .7rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: #b9b9b9;
+  }
+
   .foot-links {
     display: flex;
     flex-wrap: wrap;
@@ -757,8 +766,8 @@
 <header class="nav">
   <div class="wrap nav-inner">
     <a class="brand" href="#top">
-      <span class="brand-mark">EIW</span>
-      EXAM&nbsp;INTELLIGENCE
+      <span class="brand-mark">SS</span>
+      STUDSEM
     </a>
     <nav class="nav-links" aria-label="Sections">
       <a href="#flow">Flow</a>
@@ -776,12 +785,12 @@
   <div class="wrap">
     <section class="hero" style="padding-bottom:3rem">
       <div>
-        <span class="eyebrow">B.Tech CSE · End-sem survival kit</span>
+        <span class="eyebrow">StudSem · B.Tech CSE end-sem survival kit</span>
         <h1>PREDICT YOUR PAPER.<br><span class="hl">NOT YOUR LUCK.</span></h1>
         <p class="lede">
-          Drop in your syllabus, the last three years of question papers, and whatever
-          sir said in class. Get a ranked hit-list of topics, a full mock paper, and a
-          study plan that fits the days you actually have left.
+          StudSem takes your syllabus, the last three years of question papers, and
+          whatever sir said in class. Get a ranked hit-list of topics, a full mock paper,
+          and a study plan that fits the days you actually have left.
         </p>
         <div class="cta-row">
           <a class="btn" href="#run">Run it locally →</a>
@@ -1030,7 +1039,10 @@
 <footer>
   <div class="wrap">
     <div class="foot-grid">
-      <div class="foot-brand">EXAM<br><em>INTELLIGENCE</em><br>WORKFLOW</div>
+      <div>
+        <div class="foot-brand">STUD<em>SEM</em></div>
+        <p class="foot-sub">Exam Intelligence Workflow</p>
+      </div>
       <nav class="foot-links" aria-label="Footer">
         <a href="https://github.com/AbhishekAmarvalli/StudSem" target="_blank" rel="noopener">Repository ↗</a>
         <a href="https://github.com/AbhishekAmarvalli/StudSem#readme" target="_blank" rel="noopener">Docs ↗</a>
