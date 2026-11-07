@@ -216,6 +216,23 @@ class StudyPlanOutput(BaseModel):
     warnings: List[str] = []
 
 
+# ── Practical / Viva ───────────────────────────────────────────────────────────
+
+class VivaQuestion(BaseModel):
+    question: str
+    answer_points: List[str] = []
+    follow_ups: List[str] = []
+    topic: str = ""
+    unit: Optional[int] = None
+    kind: str = "theory"  # theory | application | practical | troubleshooting
+
+
+class VivaOutput(BaseModel):
+    questions: List[VivaQuestion] = []
+    practical_tasks: List[str] = []
+    warnings: List[str] = []
+
+
 # ── Examiner ───────────────────────────────────────────────────────────────────
 
 class ExaminerIssue(BaseModel):
@@ -273,6 +290,8 @@ class WorkflowState(BaseModel):
     pasted_text: str = ""
 
     # Pipeline intermediates
+    course_level: str = ""
+    discipline: str = ""
     raw_documents: List[Dict[str, Any]] = Field(default_factory=list)
     classified_docs: Optional[ClassifierOutput] = None
     syllabus: Optional[SyllabusOutput] = None
@@ -288,6 +307,7 @@ class WorkflowState(BaseModel):
     question_bank: Optional[QuestionBankOutput] = None
     model_answers: Optional[ModelAnswersOutput] = None
     flashcards_output: Optional[FlashcardsOutput] = None
+    viva_output: Optional[VivaOutput] = None
 
     # Meta
     warnings: List[str] = Field(default_factory=list)

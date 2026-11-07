@@ -12,7 +12,7 @@ from llm_client import call_llm, parse_json_response
 from prompt_loader import system_prompt, build_prompt
 from schemas import (
     MockPaperOutput, QuestionBankOutput, ModelAnswersOutput,
-    FlashcardsOutput, StudyPlanOutput, TopicPrediction,
+    FlashcardsOutput, StudyPlanOutput, TopicPrediction, VivaOutput,
 )
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,18 @@ def _priority_summary(topics: List[TopicPrediction]) -> str:
     for t in topics:
         lines.append(f"- [{t.label}] {t.topic} (unit {t.unit}) – {t.percentage}% – {t.evidence}")
     return "\n".join(lines)
+
+
+def _exam_context(state: Dict[str, Any]) -> str:
+    """Describe the course/exam so every generator adapts to the subject."""
+    bits = [f"Subject/course: {state.get('subject') or 'not specified'}"]
+    if state.get("course_level"):
+        bits.append(f"Level: {state['course_level']}")
+    if state.get("discipline"):
+        bits.append(f"Discipline: {state['discipline']}")
+    if state.get("exam_type"):
+        bits.append(f"Exam type: {state['exam_type']}")
+    return "\n\n" + " | ".join(bits)
 
 
 # ── Mock Paper ─────────────────────────────────────────────────────────────────
@@ -36,6 +48,7 @@ def generate_mock_paper(state: Dict[str, Any]) -> MockPaperOutput:
 
     user_prompt = (
         build_prompt("P6a")
+        + _exam_context(state)
         + f"\n\nMode: {mode}"
         + f"\n\nExam pattern:\n{json.dumps(pattern, indent=2)}"
         + f"\n\nSyllabus:\n{syllabus_json}"
@@ -61,6 +74,7 @@ def generate_question_bank(state: Dict[str, Any]) -> QuestionBankOutput:
 
     user_prompt = (
         build_prompt("P6b")
+        + _exam_context(state)
         + f"\n\nDifficulty split: {diff_split}"
         + f"\n\nQuestion types from pattern: {pattern.get('question_types', [])}"
         + f"\n\nSyllabus:\n{syllabus_json}"
@@ -92,6 +106,7 @@ def generate_model_answers(state: Dict[str, Any]) -> ModelAnswersOutput:
 
     user_prompt = (
         build_prompt("P6c")
+        + _exam_context(state)
         + f"\n\nAnswer length guide: {answer_length}"
         + f"\n\nQuestions:\n{questions_text}"
         + "\n\nReturn JSON with key 'answers'."
@@ -115,6 +130,7 @@ def generate_flashcards(state: Dict[str, Any]) -> FlashcardsOutput:
 
     user_prompt = (
         build_prompt("P6d")
+        + _exam_context(state)
         + f"\n\nSyllabus:\n{syllabus_json}"
         + f"\n\nMUST+SHOULD topics:\n{_priority_summary(must_should)}"
         + "\n\nReturn JSON with keys 'flashcards' and 'formula_units'."
@@ -139,6 +155,7 @@ def generate_study_plan(state: Dict[str, Any]) -> StudyPlanOutput:
 
     user_prompt = (
         build_prompt("P7")
+        + _exam_context(state)
         + f"\n\nToday: {today}"
         + f"\n\nExam date: {exam_date}"
         + f"\n\nHours per day: {hours_per_day}"
@@ -152,3 +169,30 @@ def generate_study_plan(state: Dict[str, Any]) -> StudyPlanOutput:
 def study_plan_node(state: dict) -> dict:
     result = generate_study_plan(state)
     return {"study_plan": result, "progress": {**state.get("progress", {}), "study_plan": "done"}}
+
+
+# ── Practical / Viva Questions ────────────────────────────────────────────────
+
+def generate_viva(state: Dict[str, Any]) -> VivaOutput:
+    topics = state.get("predictions", [])
+    syllabus = state.get("syllabus")
+    syllabus_json = syllabus.json() if syllabus and hasattr(syllabus, "json") else "{}"
+    count = state.get("viva_count") or 15
+    lab = (state.get("practical_focus") or "").strip()
+
+    user_prompt = (
+        build_prompt("P6e")
+        + _exam_context(state)
+        + f"\n\nNumber of questions wanted: about {count}"
+        + (f"\n\nPractical/lab focus: {lab}" if lab else "")
+        + f"\n\nSyllabus:\n{syllabus_json}"
+        + f"\n\nPriority topics:\n{_priority_summary(topics)}"
+        + "\n\nReturn JSON with keys 'questions' and 'practical_tasks'."
+    )
+    raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
+    return parse_json_response(raw, VivaOutput, retry_prompt=user_prompt)
+
+
+def viva_node(state: dict) -> dict:
+    result = generate_viva(state)
+    return {"viva_output": result, "progress": {**state.get("progress", {}), "viva": "done"}}

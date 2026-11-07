@@ -103,7 +103,8 @@ with st.sidebar.expander("🔑 API Keys", expanded=not bool(os.getenv("GEMINI_AP
 if page == "🏠 Main Workflow":
     st.title("🎓 StudSem")
     st.caption(
-        "Evidence-based exam preparation for B.Tech CSE. "
+        "Evidence-based exam preparation for any subject — school, diploma, "
+        "undergraduate, postgraduate or professional exams. "
         "All percentages are likelihood *estimates*, capped at 90%. "
         "Nothing is guaranteed."
     )
@@ -205,6 +206,11 @@ if page == "🏠 Main Workflow":
         with out_col2:
             want_qbank = st.checkbox("Question bank", value=False)
             want_flashcards = st.checkbox("Flashcards + formula sheet", value=True)
+            want_viva = st.checkbox(
+                "Practical / viva questions",
+                value=exam_type == "Practical-Viva",
+                help="Spoken-style questions with the points your examiner wants to hear.",
+            )
 
         # Google Sheets toggle
         google_export = st.checkbox("Also export to Google Sheets (requires service account)", value=False)
@@ -230,6 +236,8 @@ if page == "🏠 Main Workflow":
             outputs_wanted.append("question_bank")
         if want_flashcards:
             outputs_wanted += ["flashcards", "formula_sheet"]
+        if want_viva:
+            outputs_wanted.append("viva")
 
         # Build raw_documents list
         raw_documents = []
@@ -378,9 +386,24 @@ if page == "🏠 Main Workflow":
                 with st.expander(f"Unit {fu.unit} – Quick Revision Sheet"):
                     st.markdown(fu.content)
 
+        # ── Practical / Viva ─────────────────────────────────────────────────
+        viva_output = final_state.get("viva_output")
+        if viva_output and want_viva:
+            st.subheader("🎤 Practical / Viva Questions")
+            if viva_output.practical_tasks:
+                st.markdown("**Tasks to be ready for**")
+                for task in viva_output.practical_tasks:
+                    st.markdown(f"- {task}")
+            for vq in viva_output.questions:
+                with st.expander(f"{vq.question}  ·  {vq.kind}"):
+                    for point in vq.answer_points:
+                        st.markdown(f"- {point}")
+                    if vq.follow_ups:
+                        st.markdown("**Likely follow-ups:** " + "; ".join(vq.follow_ups))
+
         # ── Downloads ─────────────────────────────────────────────────────────
         st.subheader("⬇️ Downloads")
-        dcols = st.columns(4)
+        dcols = st.columns(5)
 
         if predictions and want_priority:
             with dcols[0]:
@@ -424,8 +447,22 @@ if page == "🏠 Main Workflow":
                 except Exception as e:
                     st.warning(f"PDF export failed: {e}")
 
+        if viva_output and want_viva:
+            with dcols[3]:
+                from exporters.pdf_exporter import export_viva
+                try:
+                    pdf_bytes = export_viva(viva_output, subject)
+                    st.download_button(
+                        "🎤 Viva PDF",
+                        data=pdf_bytes,
+                        file_name=f"{subject}_viva.pdf",
+                        mime="application/pdf",
+                    )
+                except Exception as e:
+                    st.warning(f"PDF export failed: {e}")
+
         # HTML dashboard
-        with dcols[3]:
+        with dcols[4]:
             from exporters.html_exporter import render_dashboard
             try:
                 html_content = render_dashboard({

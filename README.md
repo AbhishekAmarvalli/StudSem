@@ -1,7 +1,8 @@
 # StudSem — Exam Intelligence Workflow
 
-> Evidence-based exam preparation and prediction for B.Tech CSE students.  
-> Stack: **LangGraph + Gemini (primary) + Groq (examiner) + Streamlit**  
+> Evidence-based exam preparation and prediction for **any subject** — school, diploma, undergraduate (engineering, science, commerce, arts, law, medicine…), postgraduate or professional exams.  
+> Theory papers, practicals and vivas: every exam type gets outputs that fit it.  
+> Stack: **LangGraph + Gemini (primary) + Groq (examiner) + local web UI / Streamlit**  
 > 100% free tier. No paid APIs. No local LLMs.
 
 ---
@@ -19,7 +20,7 @@ KNOWLEDGE BASE (JSON)
      ↓
 PREDICTOR (score + label + %)
      ↓
-PRIORITY LIST / STUDY PLAN / MOCK PAPER / QUESTION BANK / MODEL ANSWERS / FLASHCARDS
+PRIORITY LIST / STUDY PLAN / MOCK PAPER / QUESTION BANK / MODEL ANSWERS / FLASHCARDS / VIVA SET
      ↓
 EXAMINER (Groq) → retry if fail → EXPORT (PDF | HTML | Google Sheets)
 
@@ -65,9 +66,27 @@ pip install -r requirements.txt
 
 # 4. Configure secrets
 cp .env.example .env
-# Edit .env and fill in your API keys
+# Edit .env and fill in your API keys (GEMINI_API_KEY is required)
+```
 
-# 5. Run
+### 2a. Local web UI (recommended)
+
+A proper neo-brutalist interface served from your machine — no Streamlit chrome, guided 3-step form, live per-stage progress and tabbed results.
+
+```bash
+python server.py            # → http://127.0.0.1:8000
+```
+
+- **Any subject**: pick a course level and discipline, or leave them generic — the prompts adapt question style to the subject.
+- **Practical / viva exams**: choosing `Practical / Viva` or `Project viva` adds spoken-style viva questions with answer points, likely follow-ups and the practical tasks to be ready for.
+- **Live progress**: one event per pipeline stage over server-sent events, plus warnings as they appear.
+- **Exports**: priority list, mock paper, study plan, flashcards and viva set as PDF, plus the HTML dashboard.
+
+The server keeps finished runs in memory for 6 hours; restarting it clears them.
+
+### 2b. Streamlit UI
+
+```bash
 streamlit run app.py
 ```
 
@@ -162,6 +181,11 @@ Tests cover:
 
 ```
 StudSem/
+├── server.py               # Local web UI backend (FastAPI + SSE progress)
+├── webapp/
+│   ├── index.html          # Local UI markup (neo-brutalism)
+│   ├── app.css             # Local UI design system
+│   └── app.js              # Local UI logic (wizard, progress, results, grader)
 ├── app.py                  # Streamlit UI + page routing
 ├── graph.py                # LangGraph workflow definition
 ├── schemas.py              # Pydantic models (shared typed state)
@@ -176,7 +200,7 @@ StudSem/
 │   ├── teacher_analyst.py  # Teacher priority extractor
 │   ├── knowledge_base.py   # Merge + persist KB
 │   ├── predictor.py        # LLM factor extraction + scoring
-│   ├── generators.py       # Mock paper, Q-bank, answers, flashcards, plan
+│   ├── generators.py       # Mock paper, Q-bank, answers, flashcards, plan, viva
 │   ├── examiner.py         # Groq examiner with retry
 │   └── answer_grader.py    # Student answer grader
 ├── exporters/
@@ -184,7 +208,7 @@ StudSem/
 │   ├── html_exporter.py    # Jinja2 HTML dashboard
 │   └── sheets_exporter.py  # Google Sheets (optional)
 ├── prompts/
-│   ├── P0.md … P9.md       # All runtime prompts
+│   ├── P0.md … P9.md       # All runtime prompts (P6e = practical/viva set)
 ├── templates/
 │   └── dashboard.html      # Jinja2 HTML dashboard (neo-brutalism)
 ├── static/
@@ -193,7 +217,8 @@ StudSem/
 ├── data/                   # Cached knowledge bases (ephemeral on cloud)
 ├── tests/
 │   ├── test_scoring.py
-│   └── test_schemas.py
+│   ├── test_schemas.py
+│   └── test_local_server.py # Server integration test with stubbed nodes
 ├── .env.example
 ├── requirements.txt
 └── README.md

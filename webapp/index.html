@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StudSem — exam prep that shows its evidence</title>
+<meta name="description" content="Local StudSem app: upload your syllabus, past papers and teacher hints, then get a ranked topic list, mock paper, study plan and viva questions for any subject.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23ffe600' stroke='%230a0a0a' stroke-width='6'/%3E%3Ctext x='32' y='45' font-family='Arial Black,sans-serif' font-size='30' text-anchor='middle' fill='%230a0a0a'%3ESS%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+
+<a class="skip" href="#build-view">Skip to the form</a>
+
+<header class="topbar">
+  <a class="brand" href="/">
+    <span class="brand-mark" aria-hidden="true">SS</span>
+    <span class="brand-text">
+      <strong>STUDSEM</strong>
+      <em>Exam intelligence workflow</em>
+    </span>
+  </a>
+  <div class="topbar-right">
+    <span class="pill idle" id="api-pill" role="status"><span class="dot" aria-hidden="true"></span> checking keys…</span>
+    <a class="btn ghost sm" href="https://github.com/AbhishekAmarvalli/StudSem" target="_blank" rel="noopener">GitHub ↗</a>
+  </div>
+</header>
+
+<nav class="viewnav" aria-label="Sections">
+  <button class="viewtab active" data-view="build" type="button">1 · Build my prep</button>
+  <button class="viewtab" data-view="grade" type="button">2 · Grade my answer</button>
+</nav>
+
+<main>
+
+  <!-- ═══ BUILD ═══════════════════════════════════════════════════════════ -->
+  <section id="build-view" class="view" aria-label="Build my prep">
+
+    <div class="layout">
+      <div class="flow">
+
+        <!-- Step 1 -->
+        <section class="step" aria-labelledby="step1-title">
+          <div class="step-head">
+            <span class="step-num" aria-hidden="true">1</span>
+            <div>
+              <h2 id="step1-title">What are you studying?</h2>
+              <p>Any subject works — engineering, commerce, law, medicine, arts, diploma or school.</p>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="subject">Subject / course name</label>
+              <input type="text" id="subject" placeholder="e.g. Data Structures, Financial Accounting, Contract Law" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="course-level">Course level</label>
+              <select id="course-level">
+                <option value="School (Class 9-12)">School (Class 9-12)</option>
+                <option value="Diploma / Polytechnic">Diploma / Polytechnic</option>
+                <option value="Undergraduate" selected>Undergraduate (B.Tech, BSc, BCom, BA…)</option>
+                <option value="Postgraduate">Postgraduate (MTech, MSc, MBA…)</option>
+                <option value="Professional exam">Professional exam (CA, CS, GATE, NEET, Bar…)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="legend" id="exam-type-label">Exam type</span>
+            <div class="chips" role="radiogroup" aria-labelledby="exam-type-label">
+              <label class="chip"><input type="radio" name="exam-type" value="End-sem" checked><span>End-sem</span></label>
+              <label class="chip"><input type="radio" name="exam-type" value="Mid-sem"><span>Mid-sem</span></label>
+              <label class="chip"><input type="radio" name="exam-type" value="Unit test"><span>Unit test</span></label>
+              <label class="chip"><input type="radio" name="exam-type" value="Practical / Viva"><span>Practical / Viva</span></label>
+              <label class="chip"><input type="radio" name="exam-type" value="Project viva"><span>Project viva</span></label>
+            </div>
+            <span class="hint" id="exam-type-hint">Practical and viva exams get spoken viva questions instead of theory papers.</span>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label for="discipline">Discipline</label>
+              <select id="discipline">
+                <option value="General">General / not sure</option>
+                <option value="Engineering">Engineering</option>
+                <option value="Science">Science</option>
+                <option value="Commerce">Commerce / Accountancy</option>
+                <option value="Arts and Humanities">Arts &amp; Humanities</option>
+                <option value="Medicine and Health">Medicine &amp; Health</option>
+                <option value="Law">Law</option>
+                <option value="Management">Management / Business</option>
+                <option value="Education">Education</option>
+                <option value="Agriculture">Agriculture</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="exam-date">Exam date</label>
+              <input type="date" id="exam-date">
+            </div>
+          </div>
+
+          <div class="field" style="max-width: 260px;">
+            <label for="hours">Study hours per day</label>
+            <input type="number" id="hours" min="1" max="16" step="0.5" value="4">
+          </div>
+        </section>
+
+        <!-- Step 2 -->
+        <section class="step" aria-labelledby="step2-title">
+          <div class="step-head">
+            <span class="step-num" aria-hidden="true">2</span>
+            <div>
+              <h2 id="step2-title">Drop your evidence</h2>
+              <p>Syllabus, past papers, class notes, PPTs, scanned photos. Text is read, images are transcribed.</p>
+            </div>
+          </div>
+
+          <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-describedby="drop-hint">
+            <strong>Click or drag files here</strong>
+            <span class="hint" id="drop-hint">PDF, DOCX, PPTX, TXT, PNG, JPG · several files welcome</span>
+            <input type="file" id="file-input" multiple hidden
+                   accept=".pdf,.docx,.pptx,.txt,.png,.jpg,.jpeg,.webp">
+          </div>
+
+          <div class="file-list" id="file-list" aria-live="polite"></div>
+
+          <div class="field" style="margin-top: 1.2rem;">
+            <label for="hints">Teacher hints, WhatsApp messages, "sir ne bola"</label>
+            <textarea id="hints" rows="3" placeholder="e.g. Unit 3 and 5 se mostly questions aayenge, and numericals from the second half of unit 4."></textarea>
+            <span class="hint">Optional, but teacher priority outweighs past-paper frequency in the scoring.</span>
+          </div>
+
+          <div class="field" style="max-width: 420px;">
+            <label for="file-note">Which files matter most?</label>
+            <span class="hint">Set a role per file above so the pipeline knows what it is reading. Auto-detect is usually fine.</span>
+          </div>
+        </section>
+
+        <!-- Step 3 -->
+        <section class="step" aria-labelledby="step3-title">
+          <div class="step-head">
+            <span class="step-num" aria-hidden="true">3</span>
+            <div>
+              <h2 id="step3-title">What should it build?</h2>
+              <p>Pick only what you need — every extra output is another AI pass and more waiting.</p>
+            </div>
+          </div>
+
+          <div class="outputs">
+            <label class="output"><input type="checkbox" data-output="priority_list" checked>
+              <span><b>Priority topics</b><small>Ranked MUST / SHOULD / OPTIONAL list with the evidence behind each score.</small></span></label>
+
+            <label class="output"><input type="checkbox" data-output="mock_paper" checked>
+              <span><b>Mock paper</b><small>A practice paper that follows your exam pattern and marks split.</small></span></label>
+
+            <label class="output"><input type="checkbox" data-output="model_answers" checked>
+              <span><b>Model answers</b><small>Full answers with a marking scheme for each mock question.</small></span></label>
+
+            <label class="output"><input type="checkbox" data-output="study_plan" checked>
+              <span><b>Study plan</b><small>Day-by-day plan from today to exam day, within your daily hours.</small></span></label>
+
+            <label class="output"><input type="checkbox" data-output="flashcards" checked>
+              <span><b>Flashcards + revision sheet</b><small>One fact per card plus a per-unit quick revision sheet.</small></span></label>
+
+            <label class="output"><input type="checkbox" data-output="question_bank">
+              <span><b>Question bank</b><small>Extra practice questions per unit, grouped by priority.</small></span></label>
+
+            <label class="output"><input type="checkbox" data-output="viva" id="viva-output">
+              <span><b>Practical / viva questions</b><small>Spoken-style questions with the points the examiner wants plus follow-ups.</small></span></label>
+          </div>
+
+          <div class="viva-panel" id="viva-panel" hidden>
+            <div class="grid-2">
+              <div class="field">
+                <label for="viva-count">How many viva questions?</label>
+                <input type="number" id="viva-count" min="5" max="40" step="5" value="15">
+              </div>
+              <div class="field">
+                <label for="practical-focus">Lab / practical focus (optional)</label>
+                <input type="text" id="practical-focus" placeholder="e.g. titration experiments, DBMS lab, moot court">
+              </div>
+            </div>
+            <span class="hint">Questions are grouped as theory, application, practical and troubleshooting.</span>
+          </div>
+        </section>
+
+        <!-- Advanced -->
+        <details class="advanced">
+          <summary>Fine-tune the exam pattern &amp; sources</summary>
+          <div class="advanced-body">
+            <h3>Exam pattern</h3>
+            <div class="grid-3">
+              <div class="field"><label for="total-marks">Total marks</label><input type="number" id="total-marks" min="10" value="100"></div>
+              <div class="field"><label for="duration">Duration</label><input type="text" id="duration" value="3 hours"></div>
+              <div class="field"><label for="num-questions">Number of questions</label><input type="number" id="num-questions" min="1" value="10"></div>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label for="sections">Sections</label><input type="text" id="sections" value="A, B"></div>
+              <div class="field"><label for="internal-choice">Internal choice</label><input type="text" id="internal-choice" value="any 5 of 7"></div>
+            </div>
+
+            <div class="field">
+              <span class="legend">Question types to include</span>
+              <div class="chips">
+                <label class="chip"><input type="checkbox" name="qtype" value="mcq"><span>MCQ</span></label>
+                <label class="chip"><input type="checkbox" name="qtype" value="short" checked><span>Short</span></label>
+                <label class="chip"><input type="checkbox" name="qtype" value="long" checked><span>Long</span></label>
+                <label class="chip"><input type="checkbox" name="qtype" value="numerical"><span>Numerical</span></label>
+                <label class="chip"><input type="checkbox" name="qtype" value="coding"><span>Coding</span></label>
+                <label class="chip"><input type="checkbox" name="qtype" value="case study"><span>Case study</span></label>
+                <label class="chip"><input type="checkbox" name="qtype" value="diagram"><span>Diagram</span></label>
+                <label class="chip"><input type="checkbox" name="qtype" value="viva"><span>Viva</span></label>
+              </div>
+            </div>
+
+            <h3>Difficulty split (%)</h3>
+            <div class="grid-3">
+              <div class="field"><label for="easy">Easy</label><input type="number" id="easy" min="0" max="100" value="20"></div>
+              <div class="field"><label for="medium">Medium</label><input type="number" id="medium" min="0" max="100" value="50"></div>
+              <div class="field"><label for="hard">Hard</label><input type="number" id="hard" min="0" max="100" value="30"></div>
+            </div>
+
+            <h3>Focus</h3>
+            <div class="grid-2">
+              <div class="field"><label for="unit-focus">Units to focus (e.g. 2, 4)</label><input type="text" id="unit-focus" placeholder="blank = all units"></div>
+              <div class="field"><label for="include-topics">Topics to include</label><input type="text" id="include-topics" placeholder="comma separated"></div>
+            </div>
+            <div class="field"><label for="exclude-topics">Topics to exclude</label><input type="text" id="exclude-topics" placeholder="comma separated"></div>
+
+            <h3>Style</h3>
+            <div class="grid-3">
+              <div class="field"><label for="mode">Question mode</label>
+                <select id="mode">
+                  <option value="Creative" selected>Creative — fresh questions in exam style</option>
+                  <option value="Strict">Strict — reuse past / teacher questions only</option>
+                </select>
+              </div>
+              <div class="field"><label for="language">Language</label>
+                <select id="language">
+                  <option value="hinglish" selected>English + Hinglish</option>
+                  <option value="english">English only</option>
+                </select>
+              </div>
+              <div class="field"><label for="len-2">2-mark answer</label><input type="text" id="len-2" value="2-3 lines"></div>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label for="len-5">5-mark answer</label><input type="text" id="len-5" value="~150 words"></div>
+              <div class="field"><label for="len-10">10-mark answer</label><input type="text" id="len-10" value="~350 words with diagram or example"></div>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- Aside -->
+      <aside class="aside">
+        <div class="summary">
+          <h2>Ready to run</h2>
+          <dl>
+            <div><dt>Subject</dt><dd id="sum-subject">not set</dd></div>
+            <div><dt>Exam</dt><dd id="sum-exam">End-sem</dd></div>
+            <div><dt>Evidence</dt><dd id="sum-files">0 files</dd></div>
+            <div><dt>Will produce</dt><dd id="sum-outputs">5 outputs</dd></div>
+          </dl>
+          <button class="btn primary block" id="run-btn" type="button">Run the pipeline →</button>
+          <p class="aside-note" id="run-note">Takes a few minutes. Every percentage is an evidence-based estimate capped at 90% — nothing is guaranteed.</p>
+        </div>
+        <div class="summary" style="background: var(--white);">
+          <h2>What happens</h2>
+          <p style="font-size:.82rem;">Files are read once, then the pipeline sorts them, reads the syllabus, mines past papers, applies teacher hints, scores every topic, and only then writes your outputs.</p>
+          <p class="aside-note" style="font-size:.72rem;">Everything runs on your machine. Only the AI calls leave it.</p>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Progress -->
+    <section id="progress" hidden aria-live="polite">
+      <div class="progress-top">
+        <div>
+          <h2 id="progress-title">Working…</h2>
+          <p class="hint" id="progress-sub">Each stage is one AI pass. Keep this tab open.</p>
+        </div>
+        <span class="pill idle" id="progress-count">0 stages</span>
+      </div>
+      <ul class="stage-list" id="stage-list"></ul>
+      <div class="warn-feed" id="warn-feed"></div>
+    </section>
+
+    <!-- Results -->
+    <section id="results" hidden>
+      <div class="result-head">
+        <h2 id="result-title">Your prep is ready</h2>
+        <p id="result-sub"></p>
+        <div class="result-meta" id="result-meta"></div>
+      </div>
+
+      <div class="tabs" id="result-tabs" role="tablist">
+        <button class="tab active" data-tab="topics" role="tab">Priority topics</button>
+        <button class="tab" data-tab="paper" role="tab">Mock paper</button>
+        <button class="tab" data-tab="viva" role="tab">Viva</button>
+        <button class="tab" data-tab="plan" role="tab">Study plan</button>
+        <button class="tab" data-tab="cards" role="tab">Flashcards</button>
+        <button class="tab" data-tab="answers" role="tab">Model answers</button>
+        <button class="tab" data-tab="bank" role="tab">Question bank</button>
+      </div>
+
+      <div class="panel" data-panel="topics"></div>
+      <div class="panel" data-panel="paper" hidden></div>
+      <div class="panel" data-panel="viva" hidden></div>
+      <div class="panel" data-panel="plan" hidden></div>
+      <div class="panel" data-panel="cards" hidden></div>
+      <div class="panel" data-panel="answers" hidden></div>
+      <div class="panel" data-panel="bank" hidden></div>
+
+      <div class="panel" id="downloads-panel">
+        <h3 style="font-size:1rem;margin-bottom:.6rem;">Take it with you</h3>
+        <div class="downloads" id="downloads"></div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ═══ GRADE ═══════════════════════════════════════════════════════════ -->
+  <section id="grade-view" class="view" hidden aria-label="Grade my answer">
+    <div class="grader-grid">
+      <div class="step">
+        <div class="step-head">
+          <span class="step-num" aria-hidden="true">✎</span>
+          <div>
+            <h2>Grade my answer</h2>
+            <p>Paste a question and your written answer. You get marks, a rubric and what was missing.</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="g-question">Question</label>
+          <textarea id="g-question" rows="3" placeholder="The question as it appeared in the paper."></textarea>
+        </div>
+        <div class="field">
+          <label for="g-answer">Your answer</label>
+          <textarea id="g-answer" rows="8" placeholder="Type or paste what you wrote."></textarea>
+        </div>
+        <div class="grid-3">
+          <div class="field"><label for="g-marks">Marks for this question</label><input type="number" id="g-marks" min="1" value="5"></div>
+          <div class="field" style="grid-column: span 2;"><label for="g-context">Syllabus context (optional)</label><input type="text" id="g-context" placeholder="e.g. Unit 3 — Normalisation"></div>
+        </div>
+        <div class="field">
+          <label for="g-model">Model answer (optional)</label>
+          <textarea id="g-model" rows="3" placeholder="If you have it, grading gets sharper."></textarea>
+        </div>
+        <button class="btn primary" id="grade-btn" type="button">Grade it →</button>
+      </div>
+
+      <aside class="aside">
+        <div class="summary" style="background: var(--white);">
+          <h2>How grading works</h2>
+          <p style="font-size:.82rem;">A university-style examiner scores your answer against the rubric: credit for correct points phrased differently, penalties for factual errors, no reward for length.</p>
+        </div>
+      </aside>
+    </div>
+
+    <div id="grade-result" style="margin-top:1.6rem;" hidden></div>
+  </section>
+
+</main>
+
+<footer>
+  <div>
+    <div class="foot-brand">STUDSEM</div>
+    <span class="hint">Exam Intelligence Workflow · local UI</span>
+  </div>
+  <div class="hint" style="max-width: 46ch;">
+    Estimates only. Built from the documents you supply — always check against your official syllabus.
+  </div>
+</footer>
+
+<script src="/assets/app.js"></script>
+</body>
+</html>

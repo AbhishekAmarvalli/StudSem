@@ -113,6 +113,53 @@ def export_study_plan(plan: Any) -> bytes:
     return buf.getvalue()
 
 
+def export_viva(viva: Any, subject: str) -> bytes:
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=2*cm, rightMargin=2*cm,
+                             topMargin=2*cm, bottomMargin=2*cm)
+    story = [_h1(f"Practical / Viva Prep – {subject}"), _spacer()]
+
+    if viva.practical_tasks:
+        story.append(_h2("Practical tasks to be ready for"))
+        for task in viva.practical_tasks:
+            story.append(_body(f"• {task}"))
+        story.append(_spacer())
+
+    groups = (
+        ("theory", "Theory checks"),
+        ("application", "Application / why-how"),
+        ("practical", "Practical & lab"),
+        ("troubleshooting", "Troubleshooting"),
+    )
+    grouped = {key: [q for q in viva.questions if (q.kind or "theory") == key] for key, _ in groups}
+    leftovers = [q for q in viva.questions if (q.kind or "theory") not in grouped]
+
+    for key, heading in groups:
+        questions = grouped[key]
+        if not questions:
+            continue
+        story.append(_h2(heading))
+        for index, q in enumerate(questions, start=1):
+            story.append(_body(f"<b>Q{index}.</b> {q.question}"))
+            if q.answer_points:
+                story.append(_body("Answer points: " + "; ".join(q.answer_points)))
+            if q.follow_ups:
+                story.append(_body("Likely follow-ups: " + "; ".join(q.follow_ups)))
+            story.append(_spacer())
+
+    for index, q in enumerate(leftovers, start=1):
+        story.append(_body(f"<b>Q{index}.</b> {q.question}"))
+        story.append(_spacer())
+
+    if viva.warnings:
+        story.append(_h2("⚠ Warnings"))
+        for warning in viva.warnings:
+            story.append(_body(f"• {warning}"))
+
+    doc.build(story)
+    return buf.getvalue()
+
+
 def export_flashcards(fc_output: Any) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=2*cm, rightMargin=2*cm,
