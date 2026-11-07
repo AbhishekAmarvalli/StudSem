@@ -52,7 +52,7 @@ The exported HTML dashboard (`templates/dashboard.html`) and the Streamlit skin 
 
 ```bash
 # 1. Clone
-git clone https://github.com/yourname/exam-intelligence-workflow.git
+git clone https://github.com/AbhishekAmarvalli/StudSem.git
 cd exam-intelligence-workflow
 
 # 2. Create virtual environment
