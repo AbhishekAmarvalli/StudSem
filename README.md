@@ -32,9 +32,7 @@ SEPARATE: ANSWER GRADER
 
 `index.html` is a standalone, dependency-free neo-brutalist site for the project — open it directly in a browser, or publish it:
 
-1. Repo → **Settings → Pages**
-2. **Source:** Deploy from a branch → `main` / `/ (root)`
-3. Save. The site goes live at `https://<username>.github.io/<repo>/`
+Live at **https://abhishekamarvalli.github.io/StudSem/** (Settings → Pages → `main` / `/ (root)`).
 
 The exported HTML dashboard (`templates/dashboard.html`) and the Streamlit skin (`static/neo_brutalism.css`) use the same design language: cream paper, 4px black borders, hard offset shadows, sticker accents.
 
