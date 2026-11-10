@@ -87,8 +87,22 @@ The server keeps finished runs in memory for 6 hours; restarting it clears them.
 ### 2b. Streamlit UI
 
 ```bash
+# Windows: double-click run.bat, or run this from the project folder
+python -m streamlit run app.py
+
+# Mac/Linux
 streamlit run app.py
 ```
+
+> **`'streamlit' is not recognized` in Windows cmd?** `pip` puts the `streamlit.exe`
+> shim in your user Scripts folder (`%APPDATA%\Python\Python313\Scripts`), which is
+> often not on `PATH`. `python -m streamlit run app.py` and `run.bat` both work
+> without touching `PATH`; `run.bat` also picks the project `venv` when it has
+> Streamlit installed.
+
+> **Dark mode**: the app ships a light and a dark theme. Open the app menu (⋮,
+> top-right) → **Theme** → *System / Light / Dark*. The CSS in `ui.py` follows the
+> active theme, so cards, borders and alerts stay readable in both.
 
 > **RAM note**: Designed for 8 GB RAM laptops. Files processed one at a time, never loaded all-at-once into memory.
 
@@ -171,6 +185,7 @@ Tests cover:
 | `groq.RateLimitError` | Groq free tier limit. Wait or switch `GROQ_MODEL` to another free model. |
 | PDF text empty | File is likely a scan. The app auto-routes to Gemini vision. Ensure `GEMINI_API_KEY` is set. |
 | `ModuleNotFoundError` | Run `pip install -r requirements.txt` again in your venv. |
+| `'streamlit' is not recognized` (Windows) | Run `python -m streamlit run app.py` or double-click `run.bat`. Add `%APPDATA%\Python\Python313\Scripts` to `PATH` if you want the bare `streamlit` command everywhere. |
 | Streamlit app crashes on deploy | Check **Manage app → Logs**. Usually a missing secret or import error. |
 | `RAM` / `MemoryError` | The app processes files one page at a time. If still hitting limits, reduce file size or split large PDFs. |
 | Marks don't add up in mock paper | Examiner will catch this and trigger a regeneration (max 2 retries). Check warnings section. |

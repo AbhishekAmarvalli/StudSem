@@ -13,7 +13,7 @@ state channels.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, TypedDict
 
 from langgraph.graph import StateGraph, END
 
@@ -35,8 +35,54 @@ from nodes.examiner import examiner_node
 
 logger = logging.getLogger(__name__)
 
-# State is a plain dict (compatible with LangGraph StateGraph)
-# Typed WorkflowState (Pydantic) is used only for IDE hints and validation.
+# LangGraph only carries keys declared in the state schema between nodes. A bare
+# ``StateGraph(dict)`` declares no channels, so each node receives just the
+# previous node's return value — subject, documents and syllabus disappear after
+# one hop. Declaring the schema keeps the whole state available to every node.
+class GraphState(TypedDict, total=False):
+    # Inputs
+    subject: str
+    exam_type: str
+    exam_pattern: Dict[str, Any]
+    difficulty_split: Dict[str, float]
+    unit_focus: List[int]
+    include_topics: List[str]
+    exclude_topics: List[str]
+    exam_date: Any
+    hours_per_day: float
+    mode: str
+    language: str
+    answer_length: Dict[str, str]
+    outputs_wanted: List[str]
+    pasted_text: str
+    viva_count: int
+    practical_focus: str
+    course_level: str
+    discipline: str
+
+    # Pipeline intermediates
+    raw_documents: List[Dict[str, Any]]
+    classified_docs: Any
+    syllabus: Any
+    paper_analysis: Any
+    teacher_analysis: Any
+    knowledge_base: Dict[str, Any]
+    predictions: Any
+    priority_list: Any
+
+    # Generated artifacts
+    mock_paper: Any
+    examiner_output: Any
+    question_bank: Any
+    model_answers: Any
+    flashcards_output: Any
+    study_plan: Any
+    viva_output: Any
+
+    # Bookkeeping
+    warnings: List[str]
+    errors: List[str]
+    progress: Dict[str, str]
 
 
 def build_graph(outputs_wanted: List[str], exam_type: str = "") -> StateGraph:
@@ -45,7 +91,7 @@ def build_graph(outputs_wanted: List[str], exam_type: str = "") -> StateGraph:
     Only generator nodes requested by the user are added.
     Practical/viva exam types always get the viva node.
     """
-    g = StateGraph(dict)
+    g = StateGraph(GraphState)
 
     # ── Core pipeline (always runs) ───────────────────────────────────────────
     g.add_node("classifier", classify_node)

@@ -4,7 +4,7 @@ schemas.py – Pydantic models for every LangGraph node's input/output.
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 # ── Document / Classifier ──────────────────────────────────────────────────────
@@ -168,8 +168,9 @@ class QuestionBankOutput(BaseModel):
 # ── Model Answers ──────────────────────────────────────────────────────────────
 
 class ModelAnswer(BaseModel):
-    question_id: str
-    question_text: str
+    # Models often shorten these to "id"/"question"/"text" — accept both.
+    question_id: str = Field(validation_alias=AliasChoices("question_id", "id"))
+    question_text: str = Field(validation_alias=AliasChoices("question_text", "question", "text"))
     marks: int
     answer: str
     marking_scheme: List[str] = []

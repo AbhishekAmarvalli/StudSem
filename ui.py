@@ -262,11 +262,59 @@ div[data-testid="stAlertContentInfo"] { background: #d9f6ff !important; }
 """
 
 
+# Dark variant. Colours come from .streamlit/config.toml [theme.dark]; these
+# overrides keep the neo-brutalist surfaces and every text/accent pairing
+# readable when the viewer picks Dark (or their OS is dark) in the app menu.
+DARK_CSS = """
+<style>
+:root {
+  --ink: #f4efe2;
+  --paper: #121212;
+  --card: #1b1b1b;
+  --muted: #c8c2b4;
+  --line: 3px solid var(--ink);
+  --shadow: 6px 6px 0 var(--ink);
+}
+
+/* Alerts use dark tints so the (now light) body text stays readable. */
+div[data-testid="stAlertContentWarning"] { background: #3a3410 !important; }
+div[data-testid="stAlertContentError"]   { background: #4a1d24 !important; }
+div[data-testid="stAlertContentSuccess"] { background: #23380f !important; }
+div[data-testid="stAlertContentInfo"]    { background: #12323a !important; }
+
+/* Light accent fills need dark ink text, not the light --ink. */
+.ss-step[data-state="done"],
+.ss-step[data-state="current"],
+.stButton > button:hover,
+.stDownloadButton > button:hover,
+.stFormSubmitButton > button:hover,
+.stButton > button[kind="primary"],
+.stFormSubmitButton > button,
+[role="option"]:hover { color: #0a0a0a !important; }
+
+[data-testid="stExpander"] summary:hover { background: rgba(255, 230, 0, .18) !important; }
+[data-testid="stFileUploaderDropzone"] { background: var(--card) !important; }
+[data-testid="stDataFrame"] { background: var(--card); }
+</style>
+"""
+
+
 # ── Rendering helpers ─────────────────────────────────────────────────────────
+
+def _is_dark_theme() -> bool:
+    """True when the viewer's active Streamlit theme is dark."""
+    try:
+        theme_type = st.context.theme.type
+    except Exception:  # noqa: BLE001 - older Streamlit / bare test mode
+        return False
+    return (theme_type or "").lower() == "dark"
+
 
 def inject_css() -> None:
     """Load the single source of truth for styling (Principle 1)."""
     st.markdown(CSS, unsafe_allow_html=True)
+    if _is_dark_theme():
+        st.markdown(DARK_CSS, unsafe_allow_html=True)
 
 
 def page_header(title: str, subtitle: str) -> None:

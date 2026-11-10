@@ -7,6 +7,7 @@ Examiner calls always go to Groq.
 from __future__ import annotations
 
 import os
+import re
 import time
 import json
 import logging
@@ -144,7 +145,16 @@ def call_llm(
             return _call_gemini(system_prompt, user_prompt, **kwargs)
         except Exception as e:
             err = str(e).lower()
-            if "rate" in err or "quota" in err:
+            # 503 / UNAVAILABLE / overloaded are temporary like a quota hit, so
+            # retry and then fall back instead of failing the whole run.
+            transient = (
+                "rate" in err
+                or "quota" in err
+                or "503" in err
+                or "unavailable" in err
+                or "overloaded" in err
+            )
+            if transient:
                 if attempt < MAX_RETRIES - 1:
                     _exponential_backoff(attempt)
                     continue
@@ -176,6 +186,21 @@ def call_llm(
     raise RuntimeError("LLM call failed after all retries.")
 
 
+def _lenient_json(text: str) -> Any:
+    """Load JSON that a model may have written loosely.
+
+    Models occasionally emit raw newlines/tabs inside strings or a backslash
+    that is not a legal JSON escape (e.g. ``\\(a)``). Plain ``json.loads``
+    rejects both, which loses an otherwise usable answer.
+    """
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    repaired = re.sub(r'\\(?!["\\/bfnrtu])', r"\\\\", text)
+    return json.loads(repaired, strict=False)
+
+
 def parse_json_response(raw: str, schema_cls, retry_prompt: str = "") -> Any:
     """
     Parse raw LLM text as JSON into schema_cls (Pydantic model).
@@ -188,7 +213,7 @@ def parse_json_response(raw: str, schema_cls, retry_prompt: str = "") -> Any:
         text = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else "\n".join(lines[1:])
 
     try:
-        data = json.loads(text)
+        data = _lenient_json(text)
         return schema_cls(**data)
     except Exception as first_err:
         if not retry_prompt:
@@ -209,7 +234,7 @@ def parse_json_response(raw: str, schema_cls, retry_prompt: str = "") -> Any:
             if fixed_text.startswith("```"):
                 lines = fixed_text.split("\n")
                 fixed_text = "\n".join(lines[1:-1]) if lines[-1].strip() == "```" else "\n".join(lines[1:])
-            data = json.loads(fixed_text)
+            data = _lenient_json(fixed_text)
             return schema_cls(**data)
         except Exception as second_err:
             raise ValueError(

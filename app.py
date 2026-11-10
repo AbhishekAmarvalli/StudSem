@@ -97,12 +97,28 @@ def _init_state() -> None:
         "file_signature": "",
         "saved_subjects": [],
         "preset": list(PRESETS)[0],
+        "answers": {},
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
 
 
 _init_state()
+
+
+def _remember(**values) -> None:
+    """Store the wizard's answers outside its widget keys.
+
+    Streamlit drops a widget's state on the rerun after that widget stops being
+    rendered, and the wizard only renders one step at a time. Without this
+    snapshot, everything filled in on steps 1-3 is empty by step 4 — the run
+    then complains about a missing subject and documents.
+    """
+    st.session_state.setdefault("answers", {}).update(values)
+
+
+def _answer(key: str, default=None):
+    return st.session_state.setdefault("answers", {}).get(key, default)
 
 
 # ── Sidebar (Principles 4, 16: familiar rail, status first, help last) ────────
@@ -254,11 +270,17 @@ def _step_upload() -> None:
             help="Teacher priority outweighs past-paper frequency in the scoring.",
         )
 
+    # Snapshot the uploads and roles so step 4 can still build the state.
+    # Always write the snapshot: skipping it when the list is empty kept files
+    # the user had just removed, and step 4 then ran on stale uploads.
+    _remember(files=list(files or []), file_roles=dict(roles))
+    _remember(pasted_text=st.session_state.get("hints", ""))
+
     has_evidence = bool(files) or bool(st.session_state.get("hints", "").strip())
     _nav(
         1,
-        can_continue=True,
-        hint="" if has_evidence else "Add at least one document or a hint before running.",
+        can_continue=has_evidence,
+        hint="Add at least one document or a hint before continuing.",
     )
 
 
@@ -333,6 +355,19 @@ def _step_pattern() -> None:
         st.caption(f"Understood: units {parsed_units}" if parsed_units else "All units will be used.")
 
     subject_value = st.session_state.get("subject", "").strip()
+    _remember(
+        subject=subject_value,
+        exam_type=st.session_state.get("exam_type", "End-sem"),
+        course_level=st.session_state.get("course_level", ""),
+        discipline=st.session_state.get("discipline", ""),
+        total_marks=int(st.session_state.get("total_marks", 100)),
+        duration=st.session_state.get("duration", "3 hours"),
+        sections=st.session_state.get("sections", ""),
+        qtypes=list(st.session_state.get("qtypes", ["short", "long"])),
+        easy=easy,
+        medium=medium,
+        unit_focus_raw=st.session_state.get("unit_focus_raw", ""),
+    )
     _nav(
         2,
         can_continue=bool(subject_value) and not warning,
@@ -408,67 +443,83 @@ def _step_prefs() -> None:
         st.markdown("##### Other")
         st.checkbox("Also export the priority list to Google Sheets", key="google_export")
 
+    _remember(
+        preset=st.session_state.get("preset", list(PRESETS)[0]),
+        exam_date=exam_date,
+        hours=float(st.session_state.get("hours", 4.0)),
+        mode=st.session_state.get("mode", "Creative"),
+        al2=st.session_state.get("al2", "2-3 lines"),
+        al5=st.session_state.get("al5", "~150 words"),
+        al10=st.session_state.get("al10", "~350 words with diagram or example"),
+        include_topics=st.session_state.get("include_topics", ""),
+        exclude_topics=st.session_state.get("exclude_topics", ""),
+        viva_count=int(st.session_state.get("viva_count", 15)),
+        practical_focus=st.session_state.get("practical_focus", ""),
+        google_export=bool(st.session_state.get("google_export", False)),
+    )
+
     _nav(3, can_continue=True)
 
 
 # ── Step 4: Run & results ─────────────────────────────────────────────────────
 def _collect_state() -> dict:
     """Build the workflow state from the wizard, absorbing messy input."""
-    files = st.session_state.get("files") or []
+    files = _answer("files") or []
+    file_roles = _answer("file_roles") or {}
     raw_documents = [
         {
             "filename": file.name,
             "data": file.getvalue(),
-            "role": st.session_state.get(f"role_{file.name}", ui.detect_role(file.name)),
+            "role": file_roles.get(file.name, ui.detect_role(file.name)),
         }
         for file in files
     ]
 
-    sections_text = st.session_state.get("sections", "")
-    total_marks = int(st.session_state.get("total_marks", 100))
+    sections_text = _answer("sections", "")
+    total_marks = int(_answer("total_marks", 100))
     inferred_questions = ui.infer_question_count(sections_text, total_marks, fallback=10)
 
-    easy = int(st.session_state.get("easy", 20))
-    medium = int(st.session_state.get("medium", 50))
-    preset_outputs = list(PRESETS[st.session_state.preset])
-    exam_type = st.session_state.get("exam_type", "End-sem")
+    easy = int(_answer("easy", 20))
+    medium = int(_answer("medium", 50))
+    preset_outputs = list(PRESETS[_answer("preset", list(PRESETS)[0])])
+    exam_type = _answer("exam_type", "End-sem")
 
     # Principle 17: a viva exam always gets viva questions, no extra tick needed.
     if "viva" in exam_type.lower() and "viva" not in preset_outputs:
         preset_outputs.append("viva")
 
-    exam_date = st.session_state.get("exam_date") or (datetime.date.today() + datetime.timedelta(days=14))
+    exam_date = _answer("exam_date") or (datetime.date.today() + datetime.timedelta(days=14))
 
     return {
-        "subject": st.session_state.get("subject", "").strip(),
+        "subject": (_answer("subject") or "").strip(),
         "exam_type": exam_type,
-        "course_level": st.session_state.get("course_level", ""),
-        "discipline": st.session_state.get("discipline", ""),
+        "course_level": _answer("course_level", ""),
+        "discipline": _answer("discipline", ""),
         "exam_pattern": {
             "total_marks": total_marks,
-            "duration": st.session_state.get("duration", "3 hours"),
+            "duration": _answer("duration", "3 hours"),
             "num_questions": inferred_questions,
-            "sections": ui.split_topics(st.session_state.get("sections", "A, B")),
-            "internal_choice": st.session_state.get("sections", ""),
-            "question_types": st.session_state.get("qtypes", ["short", "long"]),
+            "sections": ui.split_topics(sections_text or "A, B"),
+            "internal_choice": sections_text,
+            "question_types": _answer("qtypes") or ["short", "long"],
         },
         "difficulty_split": {"easy": easy, "medium": medium, "hard": ui.compute_hard_split(easy, medium)},
-        "unit_focus": ui.parse_unit_focus(st.session_state.get("unit_focus_raw", "")),
-        "include_topics": ui.split_topics(st.session_state.get("include_topics", "")),
-        "exclude_topics": ui.split_topics(st.session_state.get("exclude_topics", "")),
+        "unit_focus": ui.parse_unit_focus(_answer("unit_focus_raw", "")),
+        "include_topics": ui.split_topics(_answer("include_topics", "")),
+        "exclude_topics": ui.split_topics(_answer("exclude_topics", "")),
         "exam_date": str(exam_date),
-        "hours_per_day": float(st.session_state.get("hours", 4.0)),
-        "mode": st.session_state.get("mode", "Creative"),
+        "hours_per_day": float(_answer("hours", 4.0)),
+        "mode": _answer("mode", "Creative"),
         "language": "hinglish",
         "answer_length": {
-            "2": st.session_state.get("al2", "2-3 lines"),
-            "5": st.session_state.get("al5", "~150 words"),
-            "10": st.session_state.get("al10", "~350 words"),
+            "2": _answer("al2", "2-3 lines"),
+            "5": _answer("al5", "~150 words"),
+            "10": _answer("al10", "~350 words"),
         },
         "outputs_wanted": preset_outputs,
-        "pasted_text": st.session_state.get("hints", ""),
-        "viva_count": int(st.session_state.get("viva_count", 15)),
-        "practical_focus": st.session_state.get("practical_focus", ""),
+        "pasted_text": _answer("pasted_text", ""),
+        "viva_count": int(_answer("viva_count", 15)),
+        "practical_focus": _answer("practical_focus", ""),
         "raw_documents": raw_documents,
         "warnings": [],
         "errors": [],
@@ -541,8 +592,8 @@ def _execute(state: dict) -> None:
         "subject": state["subject"],
         "exam_type": state["exam_type"],
         "exam_date": state["exam_date"],
-        "days_left": ui.days_left(st.session_state.get("exam_date")),
-        "google_export": st.session_state.get("google_export", False),
+        "days_left": ui.days_left(_answer("exam_date")),
+        "google_export": bool(_answer("google_export", False)),
         "outputs": state["outputs_wanted"],
     }
     st.toast("Exam pack ready", icon="✅")
@@ -558,16 +609,16 @@ def _step_run() -> None:
             st.markdown("#### Check before you run")
             # Principle 12: repeat earlier choices so nothing has to be remembered.
             st.markdown(
-                f"**Subject** · {ui.escape(st.session_state.get('subject') or '—')}  \n"
-                f"**Exam** · {st.session_state.get('exam_type', '—')} · "
-                f"{st.session_state.get('exam_date', '—')}  \n"
-                f"**Files** · {len(st.session_state.get('files') or [])} uploaded  \n"
-                f"**Preset** · {st.session_state.get('preset', '—')}"
+                f"**Subject** · {ui.escape(_answer('subject') or '—')}  \n"
+                f"**Exam** · {_answer('exam_type', '—')} · "
+                f"{_answer('exam_date', '—')}  \n"
+                f"**Files** · {len(_answer('files') or [])} uploaded  \n"
+                f"**Preset** · {_answer('preset', '—')}"
             )
             if not os.getenv("GEMINI_API_KEY"):
                 st.error("Add a Gemini API key in the sidebar before running.")
 
-        outputs = list(PRESETS[st.session_state.preset])
+        outputs = list(PRESETS[_answer("preset", list(PRESETS)[0])])
         st.caption(f"{len(outputs)} output(s) · one AI pass per stage · usually a few minutes")
 
         if st.button("▶ Run the workflow", type="primary", use_container_width=True,
