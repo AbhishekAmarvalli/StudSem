@@ -107,6 +107,24 @@ def _section_label(spec: str) -> str:
     return (match.group(1) if match else head).strip()
 
 
+def _display_section_name(label: str) -> Optional[str]:
+    return f"Section {label.upper()}" if re.fullmatch(r"[A-Za-z]", label) else None
+
+
+def _normalise_section_names(
+    paper: MockPaperOutput, specs: List[str]
+) -> MockPaperOutput:
+    """Use one naming style ('Section A') whatever the model calls its sections."""
+    labels = [_section_label(spec) for spec in specs]
+    if not labels or len(paper.sections) != len(labels):
+        return paper
+    for section, label in zip(paper.sections, labels):
+        display = _display_section_name(label)
+        if display:
+            section.name = display
+    return paper
+
+
 def _sections_named_in_feedback(feedback: str, sections: List[str]) -> set:
     named = set()
     for spec in sections:
@@ -262,6 +280,7 @@ def generate_mock_paper(
     _report("Writing mock paper")
     raw = call_llm(system_prompt=system_prompt(), user_prompt=base_prompt)
     paper = parse_json_response(raw, MockPaperOutput, retry_prompt=base_prompt)
+    paper = _normalise_section_names(paper, sections)
     if warnings is not None:
         warnings.extend(_short_paper_warnings(paper, pattern, sections))
     return paper
@@ -287,6 +306,9 @@ def _generate_mock_paper_by_section(
         kept = reusable.get(_section_label(section).lower())
         if kept is not None:
             _report(f"Keeping mock paper section {index}/{len(sections)}: {section}")
+            display = _display_section_name(_section_label(section))
+            if display:
+                kept.name = display
             merged.append(kept)
             continue
         _report(f"Writing mock paper section {index}/{len(sections)}: {section}")
@@ -300,6 +322,7 @@ def _generate_mock_paper_by_section(
             raw = call_llm(system_prompt=system_prompt(), user_prompt=prompt)
             part = parse_json_response(raw, MockPaperOutput, retry_prompt=prompt)
             part = _top_up_section(section, prompt, part)
+            part = _normalise_section_names(part, [section])
             if not any(item.questions for item in part.sections):
                 raise RuntimeError("the model returned no questions for this section")
         except Exception as exc:

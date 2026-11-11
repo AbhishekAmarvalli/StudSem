@@ -41,6 +41,31 @@ RETIRED_MODELS = {
 # A hung HTTP call must not freeze a whole run in the Streamlit UI.
 REQUEST_TIMEOUT_MS = 180_000
 
+# A long run makes dozens of calls. Once a provider has exhausted its retries
+# on a rate limit, skip it for a while instead of paying its backoff every time.
+PROVIDER_COOLDOWN_SECONDS = int(os.getenv("LLM_PROVIDER_COOLDOWN", "600"))
+_provider_down_until: Dict[str, float] = {}
+
+
+def reset_provider_cooldowns() -> None:
+    _provider_down_until.clear()
+
+
+def _provider_available(name: str) -> bool:
+    return time.time() >= _provider_down_until.get(name, 0.0)
+
+
+def _mark_provider_down(name: str, error: Exception) -> None:
+    _provider_down_until[name] = time.time() + PROVIDER_COOLDOWN_SECONDS
+    logger.warning(
+        "%s paused for %ss after rate limiting: %s",
+        name, PROVIDER_COOLDOWN_SECONDS, error,
+    )
+
+
+def _mark_provider_up(name: str) -> None:
+    _provider_down_until.pop(name, None)
+
 
 def _active_model(kind: str, env_var: str, default: str) -> str:
     """Read a model ID at call time and skip IDs the provider has retired.
@@ -208,67 +233,83 @@ def call_llm(
                 else:
                     raise RuntimeError(f"Groq failed: {e}") from e
 
+    errors: List[str] = []
+
     # Gemini first
-    for attempt in range(MAX_RETRIES):
-        try:
-            return _call_gemini(system_prompt, user_prompt, **kwargs)
-        except Exception as e:
-            err = str(e).lower()
-            # 503 / UNAVAILABLE / overloaded are temporary like a quota hit, so
-            # retry and then fall back instead of failing the whole run.
-            transient = (
-                "rate" in err
-                or "quota" in err
-                or "429" in err
-                or "503" in err
-                or "unavailable" in err
-                or "overloaded" in err
-                or "temporarily" in err
-            )
-            if transient:
+    if not _provider_available("gemini"):
+        errors.append("Gemini: paused after a recent rate limit")
+    else:
+        for attempt in range(MAX_RETRIES):
+            try:
+                result = _call_gemini(system_prompt, user_prompt, **kwargs)
+                _mark_provider_up("gemini")
+                return result
+            except Exception as e:
+                err = str(e).lower()
+                # 503 / UNAVAILABLE / overloaded are temporary like a quota hit, so
+                # retry and then fall back instead of failing the whole run.
+                transient = (
+                    "rate" in err
+                    or "quota" in err
+                    or "429" in err
+                    or "503" in err
+                    or "unavailable" in err
+                    or "overloaded" in err
+                    or "temporarily" in err
+                )
+                if not transient:
+                    raise RuntimeError(f"Gemini failed: {e}") from e
                 if attempt < MAX_RETRIES - 1:
                     _exponential_backoff(attempt)
                     continue
-                else:
-                    logger.warning("Gemini quota hit. Falling back to OpenRouter…")
-                    break
-            else:
-                raise RuntimeError(f"Gemini failed: {e}") from e
-
-    errors = []
+                _mark_provider_down("gemini", e)
+                logger.warning("Gemini quota hit. Falling back to OpenRouter…")
+                break
 
     # OpenRouter fallback
-    if os.getenv("OPENROUTER_API_KEY"):
+    if not os.getenv("OPENROUTER_API_KEY"):
+        errors.append("OpenRouter: OPENROUTER_API_KEY not set")
+    elif not _provider_available("openrouter"):
+        errors.append("OpenRouter: paused after a recent rate limit")
+    else:
         for attempt in range(MAX_RETRIES):
             try:
-                return _call_openrouter(system_prompt, user_prompt, **kwargs)
+                result = _call_openrouter(system_prompt, user_prompt, **kwargs)
+                _mark_provider_up("openrouter")
+                return result
             except Exception as e:
                 err = str(e).lower()
-                if "rate" in err and attempt < MAX_RETRIES - 1:
+                if ("rate" in err or "429" in err) and attempt < MAX_RETRIES - 1:
                     _exponential_backoff(attempt)
                 else:
                     errors.append(f"OpenRouter: {e}")
+                    if "rate" in err or "429" in err:
+                        _mark_provider_down("openrouter", e)
                     break
-    else:
-        errors.append("OpenRouter: OPENROUTER_API_KEY not set")
 
     # Groq keeps content generation alive when Gemini and OpenRouter are both
     # spent: it has a separate free-tier quota and is already configured for
     # the examiner.
-    if os.getenv("GROQ_API_KEY"):
+    if not os.getenv("GROQ_API_KEY"):
+        errors.append("Groq: GROQ_API_KEY not set")
+    elif not _provider_available("groq"):
+        errors.append("Groq: paused after a recent rate limit")
+    else:
         logger.warning("OpenRouter unavailable. Falling back to Groq…")
         for attempt in range(MAX_RETRIES):
             try:
-                return _call_groq(system_prompt, user_prompt, **kwargs)
+                result = _call_groq(system_prompt, user_prompt, **kwargs)
+                _mark_provider_up("groq")
+                return result
             except Exception as e:
                 err = str(e).lower()
-                if "rate" in err and attempt < MAX_RETRIES - 1:
+                if ("rate" in err or "429" in err) and attempt < MAX_RETRIES - 1:
                     _exponential_backoff(attempt)
                 else:
                     errors.append(f"Groq: {e}")
+                    if "rate" in err or "429" in err:
+                        _mark_provider_down("groq", e)
                     break
-    else:
-        errors.append("Groq: GROQ_API_KEY not set")
 
     raise RuntimeError(
         "All LLM providers failed.\n"

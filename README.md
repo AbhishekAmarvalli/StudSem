@@ -200,6 +200,7 @@ Tests cover:
 |---|---|
 | `google.api_core.exceptions.ResourceExhausted` | Gemini free quota hit. Calls fall back to OpenRouter, then Groq; add `OPENROUTER_API_KEY` / `GROQ_API_KEY` for a wider fallback net. |
 | `All LLM providers failed` | Gemini, OpenRouter and Groq were all rate-limited or keyless. The error lists each provider's reason; wait for a quota reset or set another key. |
+| Repeated 429s slow every chunk | A rate-limited provider is skipped for `LLM_PROVIDER_COOLDOWN` seconds (default 600) after it exhausts its retries, so later calls go straight to the next provider. Lower the value to retry sooner. |
 | `groq.RateLimitError` | Groq free tier limit. Wait or switch `GROQ_MODEL` to another free model. |
 | `404 NOT_FOUND` / `model_not_found` | A model ID was retired. Remove `GEMINI_MODEL` / `GROQ_MODEL` / `OPENROUTER_MODEL` from `.env` to use the current defaults, or set a live ID. |
 | Examiner skipped | `GROQ_API_KEY` is missing or the examiner call failed. The paper is still generated; it just is not cross-checked. |
