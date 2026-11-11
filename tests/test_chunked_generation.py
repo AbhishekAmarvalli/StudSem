@@ -352,6 +352,44 @@ def test_examiner_loop_reuses_kept_sections(monkeypatch):
     assert "warnings" not in update, "a passing re-check leaves no warnings"
 
 
+def test_examiner_rejection_naming_two_sections_rebuilds_both(monkeypatch):
+    calls = []
+    monkeypatch.setattr(G, "call_llm", _paper_fake(calls))
+    previous = MockPaperOutput(
+        header={}, marks_check={},
+        sections=[
+            _section_obj("Section A", 5), _section_obj("Section B", 5),
+            _section_obj("Section C", 5),
+        ],
+    )
+    state = {
+        "predictions": [_topic(1)],
+        "syllabus": _syllabus([1]),
+        "mock_paper": previous,
+        "_examiner_feedback": (
+            "- [duplicates] Section A repeats questions.\n"
+            "- [marks] Section C totals do not add up."
+        ),
+        "exam_pattern": {
+            "sections": ["A: 5 x 10", "B: 5 x 10", "C: 5 x 10"], "num_questions": 15,
+        },
+    }
+    paper = G.generate_mock_paper(state)
+
+    assert len(calls) == 2, "one call per rejected section"
+    assert "section 1 of 3: A: 5 x 10" in calls[0]
+    assert "section 3 of 3: C: 5 x 10" in calls[1]
+    assert [question.id for question in paper.sections[0].questions] == [
+        f"A{index}" for index in range(1, 6)
+    ], "A is rebuilt"
+    assert [question.id for question in paper.sections[1].questions] == [
+        f"Section B{index}" for index in range(1, 6)
+    ], "B is untouched"
+    assert [question.id for question in paper.sections[2].questions] == [
+        f"C{index}" for index in range(1, 6)
+    ], "C is rebuilt"
+
+
 def test_single_call_paper_warns_when_it_is_short(monkeypatch):
     def fake(system_prompt=None, user_prompt="", **kwargs):
         return json.dumps({

@@ -968,15 +968,15 @@
           <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">Get a free key ↗</a>
         </article>
         <article class="stack-card">
-          <span class="role">Examiner / QA</span>
+          <span class="role">Examiner / last-resort writer</span>
           <h3>Groq</h3>
-          <p>A different model checks the generated paper so mistakes don't come from the same brain twice.</p>
+          <p>A different model checks the generated paper — and steps in to write content if the other two free tiers are spent.</p>
           <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Get a free key ↗</a>
         </article>
         <article class="stack-card">
-          <span class="role">Fallback (optional)</span>
+          <span class="role">First fallback (optional)</span>
           <h3>OpenRouter</h3>
-          <p>When Gemini's free quota runs dry mid-run, requests fail over to a <code>:free</code> model.</p>
+          <p>When Gemini's free quota runs dry mid-run, requests fail over to a <code>:free</code> model before Groq takes over.</p>
           <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get a free key ↗</a>
         </article>
       </div>
@@ -1025,7 +1025,7 @@
           <ul class="run-list">
             <li><span class="k">1</span><span>Grab a free <b>Gemini</b> key — it does the reading and the structured extraction.</span></li>
             <li><span class="k">2</span><span>Grab a free <b>Groq</b> key — it audits every generated paper before you see it.</span></li>
-            <li><span class="k">3</span><span>OpenRouter is optional; add it and quota errors stop being your problem.</span></li>
+            <li><span class="k">3</span><span>OpenRouter is optional. Either way, calls fall back Gemini → OpenRouter → Groq, and both apps show which engine is <b>ready</b>, <b>in use</b> or <b>paused</b>.</span></li>
             <li><span class="k">4</span><span>Everything stays local. Cached text lives in <code>data/cache</code> and is safe to delete.</span></li>
           </ul>
           <a class="btn pink" href="https://github.com/AbhishekAmarvalli/StudSem#readme" target="_blank" rel="noopener">Full setup guide ↗</a>

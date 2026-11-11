@@ -281,7 +281,11 @@
           </dl>
           <button class="btn primary block" id="run-btn" type="button">Run the pipeline →</button>
           <p class="aside-note" id="run-note">Takes a few minutes. Every percentage is an evidence-based estimate capped at 90% — nothing is guaranteed.</p>
-          <p class="provider-health" id="provider-health" aria-live="polite">Engines · checking…</p>
+          <div class="provider-row">
+            <p class="provider-health" id="provider-health" aria-live="polite">Engines · checking…</p>
+            <button class="btn ghost sm" id="provider-reset" type="button"
+                    title="Clear paused / in-use provider markers">Reset</button>
+          </div>
         </div>
         <div class="summary plain">
           <h2>What happens</h2>

@@ -102,6 +102,22 @@
     }
   }
 
+  const providerReset = $("#provider-reset");
+  if (providerReset) {
+    providerReset.addEventListener("click", async () => {
+      providerReset.disabled = true;
+      try {
+        const res = await fetch("/api/providers/reset", { method: "POST" });
+        const data = await res.json();
+        renderProviders(data.providers);
+      } catch (err) {
+        /* backend gone; the strip keeps its last state */
+      } finally {
+        providerReset.disabled = false;
+      }
+    });
+  }
+
   /* ── Views ──────────────────────────────────────────────────────────── */
 
   $$(".viewtab").forEach((tab) => {

@@ -180,6 +180,21 @@ def test_health_and_index(monkeypatch):
     assert "viva-count" in page.text
 
 
+def test_provider_reset_clears_paused_markers(monkeypatch, tmp_path):
+    import llm_client
+
+    monkeypatch.setattr(llm_client, "_provider_state_file", lambda: tmp_path / "state.json")
+    monkeypatch.setattr(llm_client, "_state_loaded", True)
+    llm_client._provider_down_until["gemini"] = 9e18
+
+    client = TestClient(server.app)
+    response = client.post("/api/providers/reset")
+    assert response.status_code == 200
+    statuses = {item["name"]: item["state"] for item in response.json()["providers"]}
+    assert statuses["Gemini"] != "paused"
+    assert "gemini" not in llm_client._provider_down_until
+
+
 def test_run_requires_subject(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     client = TestClient(server.app)

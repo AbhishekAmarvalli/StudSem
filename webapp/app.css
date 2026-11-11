@@ -553,7 +553,10 @@ details.advanced h3:first-child { margin-top: 0; }
 }
 
 /* Live provider health: which engine is ready, in use, or sitting out. */
+.provider-row { display: flex; align-items: flex-start; gap: .4rem; }
+.provider-row .btn { flex: none; }
 .provider-health {
+  flex: 1;
   font-family: var(--font-mono);
   font-size: .64rem;
   line-height: 1.7;

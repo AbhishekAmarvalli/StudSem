@@ -5,7 +5,8 @@ Run:  python server.py      →  http://127.0.0.1:8000
 
 Endpoints
   GET  /                     neo-brutalist single-page UI
-  GET  /api/health           which API keys are configured
+  GET  /api/health           which API keys are configured + provider health
+  POST /api/providers/reset  clear paused/in-use provider markers
   POST /api/run              start a workflow run (multipart: config + files)
   GET  /api/run/{id}/events  server-sent events: one event per completed stage
   GET  /api/run/{id}/result  the finished result as JSON
@@ -204,6 +205,14 @@ def health() -> Dict[str, Any]:
         "model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
         "providers": provider_status(),
     }
+
+
+@app.post("/api/providers/reset")
+def reset_providers() -> Dict[str, Any]:
+    from llm_client import provider_status, reset_provider_state
+
+    reset_provider_state()
+    return {"ok": True, "providers": provider_status()}
 
 
 @app.post("/api/run")
