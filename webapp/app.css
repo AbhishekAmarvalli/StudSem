@@ -578,7 +578,12 @@ details.advanced h3:first-child { margin-top: 0; }
   font-weight: 700;
   margin-top: .25rem;
   color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: .15rem .6rem;
 }
+.probe.ok { color: var(--green); }
+.probe.bad { color: var(--red); }
 .engine {
   display: inline-block;
   border: 3px solid currentColor;

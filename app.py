@@ -144,13 +144,21 @@ def _sidebar() -> None:
         from llm_client import provider_status
 
         labels = {"ready": "ready", "paused": "paused", "preferred": "in use", "off": "no key"}
-        engines = []
+        styles = {
+            "ready": ("#d8e8ff", "#0b4f9c"),
+            "preferred": ("#d7f8c8", "#126b2f"),
+            "paused": ("#ffd6dc", "#b00020"),
+            "off": ("#e6e1d6", "#3f3f3f"),
+        }
+        chips = []
         for provider in provider_status():
-            state = labels.get(provider["state"], provider["state"])
-            if provider["state"] == "paused" and provider["paused_for"]:
-                state += f" {max(1, round(provider['paused_for'] / 60))}m"
-            engines.append(f"{provider['name']} {state}")
-        st.caption("Engines: " + " · ".join(engines))
+            state = provider["state"]
+            background, color = styles.get(state, styles["off"])
+            text = f"{provider['name']} {labels.get(state, state)}"
+            if state == "paused" and provider["paused_for"]:
+                text += f" {max(1, round(provider['paused_for'] / 60))}m"
+            chips.append(ui.badge(text, background, color))
+        st.markdown(" ".join(chips), unsafe_allow_html=True)
 
         with st.expander("API keys", expanded=not has_gemini):
             gemini_key = st.text_input(

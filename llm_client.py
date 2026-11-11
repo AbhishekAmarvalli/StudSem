@@ -74,6 +74,7 @@ def reset_provider_state() -> None:
     global _state_loaded
     _provider_down_until.clear()
     _provider_last_success.clear()
+    _probe_history.clear()
     _last_provider.set("")
     _state_loaded = False
     _save_provider_state()
@@ -164,30 +165,48 @@ def probe_providers() -> List[Dict[str, Any]]:
         label = PROVIDER_LABELS[name]
         key_var = PROVIDER_API_KEYS[name]
         if not os.getenv(key_var):
-            results.append({"name": label, "ok": False, "error": f"{key_var} not set", "latency_ms": 0})
+            results.append({
+                "name": label, "ok": False, "error": f"{key_var} not set",
+                "latency_ms": 0, "history": _record_probe(name, False, 0),
+            })
             continue
         started = time.time()
         try:
             _provider_caller(name)(system_prompt=prompt, user_prompt=prompt)
         except Exception as exc:  # noqa: BLE001 - a probe reports, never raises
+            latency = int((time.time() - started) * 1000)
             results.append({
                 "name": label,
                 "ok": False,
                 "error": str(exc)[:200],
-                "latency_ms": int((time.time() - started) * 1000),
+                "latency_ms": latency,
+                "history": _record_probe(name, False, latency),
             })
             if _is_transient(str(exc)):
                 _mark_provider_down(name, exc)
         else:
             _mark_provider_up(name)
             _save_provider_state()
+            latency = int((time.time() - started) * 1000)
             results.append({
                 "name": label,
                 "ok": True,
                 "error": "",
-                "latency_ms": int((time.time() - started) * 1000),
+                "latency_ms": latency,
+                "history": _record_probe(name, True, latency),
             })
     return results
+
+
+PROBE_HISTORY_LIMIT = 6
+_probe_history: Dict[str, List[Dict[str, Any]]] = {}
+
+
+def _record_probe(name: str, ok: bool, latency_ms: int) -> List[Dict[str, Any]]:
+    history = _probe_history.setdefault(name, [])
+    history.append({"ok": ok, "latency_ms": latency_ms})
+    del history[:-PROBE_HISTORY_LIMIT]
+    return list(history)
 
 
 def provider_status() -> List[Dict[str, Any]]:

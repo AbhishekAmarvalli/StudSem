@@ -12,6 +12,7 @@ def _clean_cooldowns(monkeypatch, tmp_path):
     monkeypatch.setattr(L, "_provider_down_until", {})
     monkeypatch.setattr(L, "_provider_last_success", {})
     monkeypatch.setattr(L, "_state_loaded", False)
+    monkeypatch.setattr(L, "_probe_history", {})
     monkeypatch.setattr(L, "_provider_state_file", lambda: tmp_path / "provider_state.json")
 
 
@@ -132,6 +133,21 @@ def test_probe_reports_each_configured_provider(monkeypatch):
     assert results["Groq"]["ok"] is True
     assert results["OpenRouter"]["ok"] is False
     assert "OPENROUTER_API_KEY not set" in results["OpenRouter"]["error"]
+
+
+def test_probe_keeps_latency_history(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    monkeypatch.setenv("GROQ_API_KEY", "test")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setattr(L, "_call_gemini", lambda *args, **kwargs: "OK")
+    monkeypatch.setattr(L, "_call_groq", lambda *args, **kwargs: "OK")
+
+    L.probe_providers()
+    results = {item["name"]: item for item in L.probe_providers()}
+    assert len(results["Gemini"]["history"]) == 2
+    assert len(results["Groq"]["history"]) == 2
+    assert all("latency_ms" in entry for entry in results["Gemini"]["history"])
+    assert results["Gemini"]["history"][-1]["ok"] is True
 
 
 def test_probe_pauses_a_rate_limited_provider(monkeypatch):

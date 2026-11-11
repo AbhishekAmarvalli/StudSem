@@ -138,9 +138,16 @@
         const data = await res.json();
         renderProviders(data.providers);
         if (providerNote) {
-          providerNote.textContent = (data.results || [])
-            .map((result) => `${result.name}: ${result.ok ? `OK (${result.latency_ms} ms)` : "failed"}`)
-            .join(" · ");
+          providerNote.innerHTML = (data.results || [])
+            .map((result) => {
+              const trend = (result.history || [])
+                .map((entry) => `${entry.ok ? "" : "×"}${entry.latency_ms}`)
+                .join(" → ");
+              return `<span class="probe ${result.ok ? "ok" : "bad"}">` +
+                `${esc(result.name)} ${result.ok ? "OK" : "failed"}` +
+                (trend ? ` · ${esc(trend)} ms` : "") + `</span>`;
+            })
+            .join(" ");
         }
       } catch (err) {
         if (providerNote) providerNote.textContent = "Could not reach the local server.";
