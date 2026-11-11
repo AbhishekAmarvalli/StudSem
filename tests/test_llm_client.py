@@ -120,6 +120,35 @@ def test_provider_status_reports_paused_and_preferred(monkeypatch):
     assert statuses == {"Gemini": "paused", "OpenRouter": "off", "Groq": "preferred"}
 
 
+def test_probe_reports_each_configured_provider(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    monkeypatch.setenv("GROQ_API_KEY", "test")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setattr(L, "_call_gemini", lambda *args, **kwargs: "OK")
+    monkeypatch.setattr(L, "_call_groq", lambda *args, **kwargs: "OK")
+
+    results = {item["name"]: item for item in L.probe_providers()}
+    assert results["Gemini"]["ok"] is True
+    assert results["Groq"]["ok"] is True
+    assert results["OpenRouter"]["ok"] is False
+    assert "OPENROUTER_API_KEY not set" in results["OpenRouter"]["error"]
+
+
+def test_probe_pauses_a_rate_limited_provider(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+    def limited(*args, **kwargs):
+        raise RuntimeError("429 Too Many Requests")
+
+    monkeypatch.setattr(L, "_call_gemini", limited)
+    results = L.probe_providers()
+    assert results[0]["name"] == "Gemini"
+    assert results[0]["ok"] is False
+    assert L._provider_down_until["gemini"] > time.time()
+
+
 def test_all_providers_failing_names_each_one(monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "test")
     monkeypatch.setenv("GROQ_API_KEY", "test")

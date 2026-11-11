@@ -147,6 +147,49 @@ def _ensure_provider_state() -> None:
         _state_loaded = True
 
 
+def _provider_caller(name: str):
+    return {
+        "gemini": _call_gemini,
+        "openrouter": _call_openrouter,
+        "groq": _call_groq,
+    }[name]
+
+
+def probe_providers() -> List[Dict[str, Any]]:
+    """Send one tiny request per configured provider and report what answered."""
+    _ensure_provider_state()
+    results = []
+    prompt = "Reply with the single word OK."
+    for name in PROVIDER_ORDER:
+        label = PROVIDER_LABELS[name]
+        key_var = PROVIDER_API_KEYS[name]
+        if not os.getenv(key_var):
+            results.append({"name": label, "ok": False, "error": f"{key_var} not set", "latency_ms": 0})
+            continue
+        started = time.time()
+        try:
+            _provider_caller(name)(system_prompt=prompt, user_prompt=prompt)
+        except Exception as exc:  # noqa: BLE001 - a probe reports, never raises
+            results.append({
+                "name": label,
+                "ok": False,
+                "error": str(exc)[:200],
+                "latency_ms": int((time.time() - started) * 1000),
+            })
+            if _is_transient(str(exc)):
+                _mark_provider_down(name, exc)
+        else:
+            _mark_provider_up(name)
+            _save_provider_state()
+            results.append({
+                "name": label,
+                "ok": True,
+                "error": "",
+                "latency_ms": int((time.time() - started) * 1000),
+            })
+    return results
+
+
 def provider_status() -> List[Dict[str, Any]]:
     """Current health of each provider, for the UIs."""
     _ensure_provider_state()
@@ -397,11 +440,7 @@ def _attempt_provider(
     name: str, system_prompt: str, user_prompt: str, **kwargs: Any
 ) -> str:
     """Call one provider, retrying only temporary failures."""
-    caller = {
-        "gemini": _call_gemini,
-        "openrouter": _call_openrouter,
-        "groq": _call_groq,
-    }[name]
+    caller = _provider_caller(name)
     for attempt in range(MAX_RETRIES):
         try:
             return caller(system_prompt, user_prompt, **kwargs)

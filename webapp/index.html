@@ -283,9 +283,14 @@
           <p class="aside-note" id="run-note">Takes a few minutes. Every percentage is an evidence-based estimate capped at 90% — nothing is guaranteed.</p>
           <div class="provider-row">
             <p class="provider-health" id="provider-health" aria-live="polite">Engines · checking…</p>
-            <button class="btn ghost sm" id="provider-reset" type="button"
-                    title="Clear paused / in-use provider markers">Reset</button>
+            <div class="provider-actions">
+              <button class="btn ghost sm" id="provider-probe" type="button"
+                      title="Send one tiny request to each configured provider">Test</button>
+              <button class="btn ghost sm" id="provider-reset" type="button"
+                      title="Clear paused / in-use provider markers">Reset</button>
+            </div>
           </div>
+          <p class="provider-note" id="provider-note" aria-live="polite"></p>
         </div>
         <div class="summary plain">
           <h2>What happens</h2>

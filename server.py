@@ -7,6 +7,7 @@ Endpoints
   GET  /                     neo-brutalist single-page UI
   GET  /api/health           which API keys are configured + provider health
   POST /api/providers/reset  clear paused/in-use provider markers
+  POST /api/providers/probe  send one tiny request to each configured provider
   POST /api/run              start a workflow run (multipart: config + files)
   GET  /api/run/{id}/events  server-sent events: one event per completed stage
   GET  /api/run/{id}/result  the finished result as JSON
@@ -213,6 +214,13 @@ def reset_providers() -> Dict[str, Any]:
 
     reset_provider_state()
     return {"ok": True, "providers": provider_status()}
+
+
+@app.post("/api/providers/probe")
+def probe_provider_keys() -> Dict[str, Any]:
+    from llm_client import probe_providers, provider_status
+
+    return {"ok": True, "results": probe_providers(), "providers": provider_status()}
 
 
 @app.post("/api/run")

@@ -67,6 +67,27 @@
 
   const PROVIDER_STATES = { ready: "ready", paused: "paused", preferred: "in use", off: "no key" };
 
+  let providerTimer = null;
+
+  function providerDetail(provider) {
+    if (provider.state === "paused") {
+      return `Rate limited; retrying in about ${Math.ceil(provider.paused_for / 60)} min.`;
+    }
+    if (provider.state === "preferred") return "Answered the last chunk and is tried first.";
+    if (provider.state === "off") return "No API key configured for this provider.";
+    return "Configured and available.";
+  }
+
+  function scheduleProviderRefresh(providers) {
+    if (providerTimer) clearTimeout(providerTimer);
+    providerTimer = null;
+    const paused = providers.filter((p) => p.state === "paused" && p.paused_for > 0);
+    if (!paused.length) return;
+    const soonest = Math.min(...paused.map((p) => p.paused_for));
+    // Refresh just after the first cooldown ends, so the strip heals itself.
+    providerTimer = setTimeout(loadHealth, Math.min(soonest, 600) * 1000 + 500);
+  }
+
   function renderProviders(providers) {
     const strip = $("#provider-health");
     if (!strip || !providers || !providers.length) return;
@@ -76,9 +97,11 @@
         const wait = provider.state === "paused" && provider.paused_for
           ? ` ${Math.ceil(provider.paused_for / 60)}m`
           : "";
-        return `<span class="engine ${esc(provider.state)}">${esc(provider.name)} ${esc(label)}${wait}</span>`;
+        return `<span class="engine ${esc(provider.state)}" title="${esc(providerDetail(provider))}">` +
+          `${esc(provider.name)} ${esc(label)}${wait}</span>`;
       })
       .join(" ");
+    scheduleProviderRefresh(providers);
   }
 
   async function loadHealth() {
@@ -100,6 +123,32 @@
       pill.className = "pill bad";
       pill.textContent = "backend unreachable";
     }
+  }
+
+  const providerProbe = $("#provider-probe");
+  const providerNote = $("#provider-note");
+  if (providerProbe) {
+    providerProbe.addEventListener("click", async () => {
+      providerProbe.disabled = true;
+      const label = providerProbe.textContent;
+      providerProbe.textContent = "Testing…";
+      if (providerNote) providerNote.textContent = "";
+      try {
+        const res = await fetch("/api/providers/probe", { method: "POST" });
+        const data = await res.json();
+        renderProviders(data.providers);
+        if (providerNote) {
+          providerNote.textContent = (data.results || [])
+            .map((result) => `${result.name}: ${result.ok ? `OK (${result.latency_ms} ms)` : "failed"}`)
+            .join(" · ");
+        }
+      } catch (err) {
+        if (providerNote) providerNote.textContent = "Could not reach the local server.";
+      } finally {
+        providerProbe.disabled = false;
+        providerProbe.textContent = label;
+      }
+    });
   }
 
   const providerReset = $("#provider-reset");

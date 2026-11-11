@@ -12,7 +12,16 @@
   --cyan: #5ee7ff;
   --lime: #c6ff4d;
   --purple: #b39dff;
-  --muted: #4a4a4a;
+  --muted: #3f3f3f;
+
+  /* Status colours: dark enough for body text on cream, with a soft tint
+     behind them so red/green/blue stay readable instead of glowing. */
+  --red: #b00020;
+  --green: #126b2f;
+  --blue: #0b4f9c;
+  --red-soft: #ffd6dc;
+  --green-soft: #d7f8c8;
+  --blue-soft: #d8e8ff;
 
   --line: 4px solid var(--ink);
   --line-thin: 3px solid var(--ink);
@@ -338,7 +347,7 @@ textarea {
   box-shadow: inset 3px 3px 0 rgba(10, 10, 10, .06);
 }
 
-input::placeholder, textarea::placeholder { color: #8a8a8a; }
+input::placeholder, textarea::placeholder { color: #676767; }
 
 input:focus, select:focus, textarea:focus {
   outline: 3px solid var(--pink);
@@ -555,22 +564,34 @@ details.advanced h3:first-child { margin-top: 0; }
 /* Live provider health: which engine is ready, in use, or sitting out. */
 .provider-row { display: flex; align-items: flex-start; gap: .4rem; }
 .provider-row .btn { flex: none; }
+.provider-actions { display: flex; gap: .25rem; flex-wrap: wrap; }
 .provider-health {
   flex: 1;
   font-family: var(--font-mono);
   font-size: .64rem;
-  line-height: 1.7;
+  line-height: 1.9;
   margin-top: .2rem;
+}
+.provider-note {
+  font-family: var(--font-mono);
+  font-size: .64rem;
+  font-weight: 700;
+  margin-top: .25rem;
+  color: var(--muted);
 }
 .engine {
   display: inline-block;
-  border: var(--line-thin);
+  border: 3px solid currentColor;
+  background: var(--white);
+  color: var(--ink);
+  font-weight: 700;
   padding: 0 .35rem;
   margin: .1rem .15rem 0 0;
 }
-.engine.paused { background: var(--yellow); }
-.engine.preferred { background: var(--lime, #c6ff4d); }
-.engine.off { color: var(--muted); }
+.engine.ready { color: var(--blue); background: var(--blue-soft); }
+.engine.preferred { color: var(--green); background: var(--green-soft); }
+.engine.paused { color: var(--red); background: var(--red-soft); }
+.engine.off { color: var(--muted); background: var(--white); }
 
 /* ── Progress ────────────────────────────────────────────────────────────── */
 
@@ -853,6 +874,13 @@ html[data-theme="dark"] {
   --white: #1b1b1b;
   --muted: #c8c2b4;
 
+  --red: #ff9aa8;
+  --green: #8ff0b0;
+  --blue: #9cc4ff;
+  --red-soft: #3a1218;
+  --green-soft: #12301c;
+  --blue-soft: #10233d;
+
   --line: 4px solid var(--ink);
   --line-thin: 3px solid var(--ink);
   --shadow: 8px 8px 0 var(--ink);
@@ -889,6 +917,10 @@ html[data-theme="dark"] table.plan tr:nth-child(even) td { background: #211e16; 
 /* Bright accent fills need dark ink text, not the light --ink. */
 html[data-theme="dark"] .pill.ok,
 html[data-theme="dark"] .pill.bad,
+html[data-theme="dark"] .brand-mark,
+html[data-theme="dark"] .skip,
+html[data-theme="dark"] .icon-btn:hover,
+html[data-theme="dark"] details.advanced > summary::before,
 html[data-theme="dark"] .btn:hover:not(:disabled),
 html[data-theme="dark"] .btn.primary,
 html[data-theme="dark"] .btn.primary:hover:not(:disabled),
@@ -914,6 +946,10 @@ html[data-theme="dark"] .result-meta span { color: var(--ink); }
 html[data-theme="dark"] .pill.idle { background: var(--white); color: var(--ink); }
 
 html[data-theme="dark"] .stage.done .box { background: #0a0a0a; color: var(--lime); }
+
+/* Plain links and selected output cards sit on bright fills. */
+html[data-theme="dark"] a:hover { color: #0a0a0a; }
+html[data-theme="dark"] .output:has(input:checked) small { color: #20301a; }
 
 .theme-toggle { min-width: 92px; }
 .theme-toggle .theme-icon { font-size: .9rem; line-height: 1; }

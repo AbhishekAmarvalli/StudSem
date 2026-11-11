@@ -195,6 +195,22 @@ def test_provider_reset_clears_paused_markers(monkeypatch, tmp_path):
     assert "gemini" not in llm_client._provider_down_until
 
 
+def test_provider_probe_endpoint_returns_results(monkeypatch):
+    import llm_client
+
+    monkeypatch.setattr(
+        llm_client, "probe_providers",
+        lambda: [{"name": "Groq", "ok": True, "error": "", "latency_ms": 12}],
+    )
+    client = TestClient(server.app)
+    response = client.post("/api/providers/probe")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["results"][0]["name"] == "Groq"
+    assert body["results"][0]["ok"] is True
+    assert {item["name"] for item in body["providers"]} == {"Gemini", "OpenRouter", "Groq"}
+
+
 def test_run_requires_subject(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     client = TestClient(server.app)
