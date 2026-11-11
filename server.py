@@ -186,7 +186,7 @@ def health() -> Dict[str, Any]:
         "gemini": bool(os.getenv("GEMINI_API_KEY")),
         "groq": bool(os.getenv("GROQ_API_KEY")),
         "openrouter": bool(os.getenv("OPENROUTER_API_KEY")),
-        "model": os.getenv("GEMINI_MODEL", "gemini-2.0-flash"),
+        "model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
     }
 
 

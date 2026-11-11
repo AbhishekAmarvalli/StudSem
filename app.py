@@ -140,7 +140,7 @@ def _sidebar() -> None:
                        "#c6ff4d" if has_openrouter else "#e6e1d6"),
             unsafe_allow_html=True,
         )
-        st.caption(f"Model: {os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')}")
+        st.caption(f"Model: {os.getenv('GEMINI_MODEL', 'gemini-3.8-flash')}")
 
         with st.expander("API keys", expanded=not has_gemini):
             gemini_key = st.text_input(

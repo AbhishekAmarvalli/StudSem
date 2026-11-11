@@ -45,7 +45,11 @@ def examine_artifact(
 
     for attempt in range(MAX_EXAMINER_RETRIES + 1):
         prompt = _build_exam_prompt(artifact, syllabus, pattern, mode, diff_split)
-        raw = call_llm(system_prompt="", user_prompt=prompt, use_groq=True)
+        try:
+            raw = call_llm(system_prompt="", user_prompt=prompt, use_groq=True)
+        except Exception as e:  # noqa: BLE001 - Groq is optional; never fail the run
+            logger.warning(f"Examiner unavailable ({e}); keeping artifact unchecked.")
+            return artifact, ExaminerOutput(verdict="skipped", issues=[])
         try:
             exam_result: ExaminerOutput = parse_json_response(raw, ExaminerOutput)
         except Exception as e:
@@ -94,4 +98,9 @@ def examiner_node(state: dict) -> dict:
         for issue in result.issues:
             warnings.append(f"[Examiner warning] {issue.check}: {issue.problem}")
         updates["warnings"] = warnings
+    elif result.verdict == "skipped":
+        updates["warnings"] = state.get("warnings", []) + [
+            "Examiner skipped — Groq key missing or the examiner call failed. "
+            "The mock paper was generated but not cross-checked."
+        ]
     return updates

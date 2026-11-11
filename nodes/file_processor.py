@@ -92,9 +92,15 @@ def _extract_via_gemini_vision(data: bytes, mime: str = "application/pdf") -> st
     from google import genai as genai_new
     from google.genai import types as genai_types
 
+    from llm_client import REQUEST_TIMEOUT_MS, gemini_model
+
     api_key = os.getenv("GEMINI_API_KEY", "")
-    model_name = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-    client = genai_new.Client(api_key=api_key)
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY not set; cannot read a scanned file.")
+    client = genai_new.Client(
+        api_key=api_key,
+        http_options=genai_types.HttpOptions(timeout=REQUEST_TIMEOUT_MS),
+    )
 
     prompt = (
         "Transcribe this document faithfully. Preserve question numbers, "
@@ -103,10 +109,16 @@ def _extract_via_gemini_vision(data: bytes, mime: str = "application/pdf") -> st
     )
     part = genai_types.Part.from_bytes(data=data, mime_type=mime)
     response = client.models.generate_content(
-        model=model_name,
+        model=gemini_model(),
         contents=[prompt, part]
     )
-    return response.text
+    try:
+        text = response.text
+    except Exception:  # blocked or empty candidate
+        text = None
+    if not text:
+        raise RuntimeError("Gemini returned no readable text for this file.")
+    return text
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────

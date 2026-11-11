@@ -46,6 +46,9 @@ def generate_mock_paper(state: Dict[str, Any]) -> MockPaperOutput:
     syllabus = state.get("syllabus")
     syllabus_json = syllabus.json() if syllabus and hasattr(syllabus, "json") else "{}"
 
+    # The examiner's regeneration loop passes its issues here; without this the
+    # retry sent an identical prompt and produced the same rejected paper.
+    feedback = (state.get("_examiner_feedback") or "").strip()
     user_prompt = (
         build_prompt("P6a")
         + _exam_context(state)
@@ -53,6 +56,7 @@ def generate_mock_paper(state: Dict[str, Any]) -> MockPaperOutput:
         + f"\n\nExam pattern:\n{json.dumps(pattern, indent=2)}"
         + f"\n\nSyllabus:\n{syllabus_json}"
         + f"\n\nPriority topics:\n{_priority_summary(topics)}"
+        + (f"\n\nA previous attempt was rejected. Fix these problems:\n{feedback}" if feedback else "")
     )
     raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
     return parse_json_response(raw, MockPaperOutput, retry_prompt=user_prompt)

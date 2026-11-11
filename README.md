@@ -133,14 +133,19 @@ For **github.dev** (browser IDE): edit files only; run via Codespaces.
 
 ```toml
 GEMINI_API_KEY = "your_key"
-GEMINI_MODEL = "gemini-2.0-flash"
-GROQ_API_KEY = "your_key"
-GROQ_MODEL = "llama3-8b-8192"
-OPENROUTER_API_KEY = "your_key"
-OPENROUTER_MODEL = "mistralai/mistral-7b-instruct:free"
+GEMINI_MODEL = "gemini-3.8-flash"
+GROQ_API_KEY = "your_key"          # optional; only the examiner uses it
+GROQ_MODEL = "openai/gpt-oss-20b"
+OPENROUTER_API_KEY = "your_key"    # optional quota fallback
+OPENROUTER_MODEL = "google/gemma-4-31b-it:free"
 # Optional:
 GOOGLE_EXPORT_ENABLED = "false"
 ```
+
+> Model IDs above are current as of November 2026. Retired IDs
+> (`gemini-2.0-flash`, `llama3-8b-8192`, `mistralai/mistral-7b-instruct:free`)
+> are detected and replaced with these defaults at runtime, so an older `.env`
+> keeps working.
 
 5. Deploy. The app URL will be `https://yourapp.streamlit.app`.
 
@@ -183,6 +188,8 @@ Tests cover:
 |---|---|
 | `google.api_core.exceptions.ResourceExhausted` | Gemini free quota hit. Wait ~1 min or add `OPENROUTER_API_KEY` as fallback. |
 | `groq.RateLimitError` | Groq free tier limit. Wait or switch `GROQ_MODEL` to another free model. |
+| `404 NOT_FOUND` / `model_not_found` | A model ID was retired. Remove `GEMINI_MODEL` / `GROQ_MODEL` / `OPENROUTER_MODEL` from `.env` to use the current defaults, or set a live ID. |
+| Examiner skipped | `GROQ_API_KEY` is missing or the examiner call failed. The paper is still generated; it just is not cross-checked. |
 | PDF text empty | File is likely a scan. The app auto-routes to Gemini vision. Ensure `GEMINI_API_KEY` is set. |
 | `ModuleNotFoundError` | Run `pip install -r requirements.txt` again in your venv. |
 | `'streamlit' is not recognized` (Windows) | Run `python -m streamlit run app.py` or double-click `run.bat`. Add `%APPDATA%\Python\Python313\Scripts` to `PATH` if you want the bare `streamlit` command everywhere. |
