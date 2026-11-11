@@ -6,13 +6,14 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 from llm_client import call_llm, parse_json_response
 from prompt_loader import system_prompt, build_prompt
 from schemas import (
-    MockPaperOutput, QuestionBankOutput, ModelAnswersOutput,
-    FlashcardsOutput, StudyPlanOutput, TopicPrediction, VivaOutput,
+    MockPaperOutput, MockSection, QuestionBankOutput, QuestionBankUnit,
+    ModelAnswersOutput, FlashcardsOutput, StudyPlanOutput, TopicPrediction, VivaOutput,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,39 @@ def _exam_context(state: Dict[str, Any]) -> str:
 
 # ── Mock Paper ─────────────────────────────────────────────────────────────────
 
-def generate_mock_paper(state: Dict[str, Any]) -> MockPaperOutput:
+# One reply has a finite budget. Above these sizes the paper and the bank are
+# built in pieces, so a large subject can't lose its tail to the output limit.
+MOCK_PAPER_QUESTION_LIMIT = 12
+BANK_UNITS_PER_CALL = 3
+
+
+def _planned_question_count(pattern: Dict[str, Any]) -> int:
+    try:
+        return int(pattern.get("num_questions") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _pattern_sections(pattern: Dict[str, Any]) -> List[str]:
+    raw = pattern.get("sections") or []
+    if isinstance(raw, str):
+        raw = raw.split(",")
+    return [str(item).strip() for item in raw if str(item).strip()]
+
+
+def _syllabus_json(syllabus: Any, units: Optional[set] = None) -> str:
+    if syllabus is None or not hasattr(syllabus, "json"):
+        return "{}"
+    if units is None:
+        return syllabus.json()
+    kept = [
+        unit.dict() for unit in getattr(syllabus, "units", [])
+        if int(getattr(unit, "unit", 0) or 0) in units
+    ]
+    return json.dumps({"subject": getattr(syllabus, "subject", ""), "units": kept}, indent=2)
+
+
+def _mock_paper_prompt(state: Dict[str, Any]) -> str:
     topics = state.get("predictions", [])
     pattern = state.get("exam_pattern", {})
     mode = state.get("mode", "Creative")
@@ -49,7 +82,7 @@ def generate_mock_paper(state: Dict[str, Any]) -> MockPaperOutput:
     # The examiner's regeneration loop passes its issues here; without this the
     # retry sent an identical prompt and produced the same rejected paper.
     feedback = (state.get("_examiner_feedback") or "").strip()
-    user_prompt = (
+    return (
         build_prompt("P6a")
         + _exam_context(state)
         + f"\n\nMode: {mode}"
@@ -58,40 +91,181 @@ def generate_mock_paper(state: Dict[str, Any]) -> MockPaperOutput:
         + f"\n\nPriority topics:\n{_priority_summary(topics)}"
         + (f"\n\nA previous attempt was rejected. Fix these problems:\n{feedback}" if feedback else "")
     )
-    raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
-    return parse_json_response(raw, MockPaperOutput, retry_prompt=user_prompt)
+
+
+def generate_mock_paper(
+    state: Dict[str, Any], warnings: Optional[List[str]] = None
+) -> MockPaperOutput:
+    base_prompt = _mock_paper_prompt(state)
+    pattern = state.get("exam_pattern", {}) or {}
+    sections = _pattern_sections(pattern)
+    if len(sections) > 1 and _planned_question_count(pattern) > MOCK_PAPER_QUESTION_LIMIT:
+        return _generate_mock_paper_by_section(state, base_prompt, sections, warnings)
+    raw = call_llm(system_prompt=system_prompt(), user_prompt=base_prompt)
+    return parse_json_response(raw, MockPaperOutput, retry_prompt=base_prompt)
+
+
+def _generate_mock_paper_by_section(
+    state: Dict[str, Any],
+    base_prompt: str,
+    sections: List[str],
+    warnings: Optional[List[str]],
+) -> MockPaperOutput:
+    """Build a long paper one section per call so no single reply is truncated."""
+    notes = warnings if warnings is not None else []
+    merged: List[MockSection] = []
+    header: Dict[str, Any] = {}
+    failures: List[str] = []
+
+    for index, section in enumerate(sections, 1):
+        prompt = (
+            base_prompt
+            + f"\n\nThis paper is long, so write ONLY section {index} of {len(sections)}: {section}"
+            + "\nRespect that section's question count, marks and choice rules exactly."
+            + "\nReturn the usual JSON shape with just this one section in 'sections'; header may be empty."
+        )
+        try:
+            raw = call_llm(system_prompt=system_prompt(), user_prompt=prompt)
+            part = parse_json_response(raw, MockPaperOutput, retry_prompt=prompt)
+        except Exception as exc:
+            failures.append(f"{section}: {exc}")
+            logger.warning("Mock paper section %s failed: %s", section, exc)
+            continue
+        if not header:
+            header = dict(part.header or {})
+        merged.extend(part.sections)
+
+    if not merged:
+        raise RuntimeError("Mock paper generation failed for every section: " + " | ".join(failures))
+    if failures:
+        notes.append(
+            "Mock paper: " + "; ".join(failures) + " — those section(s) are missing."
+        )
+
+    pattern = state.get("exam_pattern", {}) or {}
+    total = sum(int(getattr(q, "marks", 0) or 0) for s in merged for q in s.questions)
+    marks_check: Dict[str, Any] = {"total": total, "computed": "per-section"}
+    try:
+        target = int(pattern.get("total_marks"))
+    except (TypeError, ValueError):
+        target = None
+    if target is not None:
+        marks_check["target"] = target
+        # Internal choice ("any 5 of 7") means printed totals need not equal the
+        # paper's target, so only claim a match when there is no choice.
+        if not any(re.search(r"\bany\b[^,]*\bof\b", text, re.I) for text in sections):
+            marks_check["match"] = total == target
+        header.setdefault("total_marks", target)
+    if pattern.get("duration") and not header.get("duration"):
+        header["duration"] = pattern["duration"]
+
+    return MockPaperOutput(header=header, sections=merged, marks_check=marks_check)
 
 
 def mock_paper_node(state: dict) -> dict:
-    result = generate_mock_paper(state)
-    return {"mock_paper": result, "progress": {**state.get("progress", {}), "mock_paper": "done"}}
+    notes: List[str] = []
+    result = generate_mock_paper(state, notes)
+    update = {"mock_paper": result, "progress": {**state.get("progress", {}), "mock_paper": "done"}}
+    if notes:
+        update["warnings"] = [*(state.get("warnings") or []), *notes]
+    return update
 
 
 # ── Question Bank ──────────────────────────────────────────────────────────────
 
-def generate_question_bank(state: Dict[str, Any]) -> QuestionBankOutput:
-    topics = state.get("predictions", [])
+def _bank_prompt(state: Dict[str, Any], syllabus_json: str, topics: List[TopicPrediction]) -> str:
     pattern = state.get("exam_pattern", {})
-    diff_split = state.get("difficulty_split", {})
-    syllabus = state.get("syllabus")
-    syllabus_json = syllabus.json() if syllabus and hasattr(syllabus, "json") else "{}"
-
-    user_prompt = (
+    return (
         build_prompt("P6b")
         + _exam_context(state)
-        + f"\n\nDifficulty split: {diff_split}"
+        + f"\n\nDifficulty split: {state.get('difficulty_split', {})}"
         + f"\n\nQuestion types from pattern: {pattern.get('question_types', [])}"
         + f"\n\nSyllabus:\n{syllabus_json}"
         + f"\n\nPriority topics:\n{_priority_summary(topics)}"
-        + "\n\nReturn JSON with key 'units' containing array of unit objects."
     )
-    raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
-    return parse_json_response(raw, QuestionBankOutput, retry_prompt=user_prompt)
+
+
+def _bank_unit_groups(state: Dict[str, Any]) -> List[List[int]]:
+    """Group the subject's units into batches small enough for one reply."""
+    units: set = set()
+    for topic in state.get("predictions") or []:
+        try:
+            units.add(int(topic.unit))
+        except (TypeError, ValueError):
+            continue
+    for unit in getattr(state.get("syllabus"), "units", []) or []:
+        try:
+            units.add(int(unit.unit))
+        except (TypeError, ValueError):
+            continue
+    ordered = sorted(unit for unit in units if unit > 0)
+    return [ordered[i:i + BANK_UNITS_PER_CALL] for i in range(0, len(ordered), BANK_UNITS_PER_CALL)]
+
+
+def _merge_bank_units(units: List[QuestionBankUnit]) -> List[QuestionBankUnit]:
+    by_unit: Dict[int, QuestionBankUnit] = {}
+    for unit in units:
+        merged = by_unit.setdefault(int(unit.unit), QuestionBankUnit(unit=int(unit.unit)))
+        for bucket in ("must", "should", "optional"):
+            existing = getattr(merged, bucket)
+            seen = {q.text.strip().lower() for q in existing}
+            for question in getattr(unit, bucket):
+                key = question.text.strip().lower()
+                if key not in seen:
+                    seen.add(key)
+                    existing.append(question)
+    return [by_unit[key] for key in sorted(by_unit)]
+
+
+def generate_question_bank(
+    state: Dict[str, Any], warnings: Optional[List[str]] = None
+) -> QuestionBankOutput:
+    topics = state.get("predictions", [])
+    syllabus = state.get("syllabus")
+    suffix = "\n\nReturn JSON with key 'units' containing array of unit objects."
+    groups = _bank_unit_groups(state)
+
+    if len(groups) <= 1:
+        user_prompt = _bank_prompt(state, _syllabus_json(syllabus), topics) + suffix
+        raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
+        return parse_json_response(raw, QuestionBankOutput, retry_prompt=user_prompt)
+
+    notes = warnings if warnings is not None else []
+    merged: List[QuestionBankUnit] = []
+    failures: List[str] = []
+    for group in groups:
+        group_set = set(group)
+        subset = [t for t in topics if getattr(t, "unit", None) in group_set]
+        user_prompt = (
+            _bank_prompt(state, _syllabus_json(syllabus, group_set), subset)
+            + f"\n\nCover ONLY units {group}; do not add other units."
+            + suffix
+        )
+        try:
+            raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
+            part = parse_json_response(raw, QuestionBankOutput, retry_prompt=user_prompt)
+        except Exception as exc:
+            failures.append(f"units {group}: {exc}")
+            logger.warning("Question bank chunk %s failed: %s", group, exc)
+            continue
+        merged.extend(part.units)
+
+    if not merged:
+        raise RuntimeError(
+            "Question bank generation failed for every unit chunk: " + " | ".join(failures)
+        )
+    if failures:
+        notes.append("Question bank: " + "; ".join(failures) + " — those units are missing.")
+    return QuestionBankOutput(units=_merge_bank_units(merged))
 
 
 def question_bank_node(state: dict) -> dict:
-    result = generate_question_bank(state)
-    return {"question_bank": result, "progress": {**state.get("progress", {}), "question_bank": "done"}}
+    notes: List[str] = []
+    result = generate_question_bank(state, notes)
+    update = {"question_bank": result, "progress": {**state.get("progress", {}), "question_bank": "done"}}
+    if notes:
+        update["warnings"] = [*(state.get("warnings") or []), *notes]
+    return update
 
 
 # ── Model Answers ──────────────────────────────────────────────────────────────

@@ -3,8 +3,72 @@ schemas.py – Pydantic models for every LangGraph node's input/output.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
-from pydantic import AliasChoices, BaseModel, Field
+import re
+from typing import Annotated, Any, Dict, List, Optional
+
+from pydantic import AliasChoices, BaseModel, BeforeValidator, Field
+
+
+# ── Lenient scalar types ───────────────────────────────────────────────────────
+# LLMs answer in human units ("5 marks", "2023-24", "80%", "Unit 3"). Rejecting
+# those burned a refresh and produced the same answer again, so parse the number
+# out of whatever the model wrote instead of failing validation.
+
+_NUMBER_RE = re.compile(r"-?\d+(?:\.\d+)?")
+_YEAR_RE = re.compile(r"\b(?:19|20)\d{2}\b")
+
+
+def _number(value: Any) -> float:
+    if isinstance(value, bool):
+        raise ValueError(f"expected a number, got {value!r}")
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        match = _NUMBER_RE.search(value.replace(",", ""))
+        if match:
+            return float(match.group(0))
+    raise ValueError(f"expected a number, got {value!r}")
+
+
+def _to_int(value: Any) -> int:
+    return int(round(_number(value)))
+
+
+def _to_float(value: Any) -> float:
+    return _number(value)
+
+
+def _to_ratio(value: Any) -> float:
+    """Scores/confidences the model wrote as 0-1, or loosely as 0-100 or "80%"."""
+    if isinstance(value, str):
+        fraction = re.fullmatch(r"\s*(-?\d+(?:\.\d+)?)\s*/\s*(-?\d+(?:\.\d+)?)\s*", value)
+        if fraction and float(fraction.group(2)):
+            return float(fraction.group(1)) / float(fraction.group(2))
+    number = _number(value)
+    text = value if isinstance(value, str) else ""
+    if "%" in text or (1 < number <= 100 and number.is_integer()):
+        number /= 100
+    return number
+
+
+def _to_year(value: Any) -> int:
+    """"2023-24", "May 2024" and "2024" all mean 2024; "2023-24" means 2023."""
+    if isinstance(value, str):
+        match = _YEAR_RE.search(value)
+        if match:
+            return int(match.group(0))
+    return _to_int(value)
+
+
+def _to_text(value: Any) -> str:
+    return "" if value is None else str(value)
+
+
+LenientInt = Annotated[int, BeforeValidator(_to_int)]
+LenientFloat = Annotated[float, BeforeValidator(_to_float)]
+LenientRatio = Annotated[float, BeforeValidator(_to_ratio)]
+LenientYear = Annotated[int, BeforeValidator(_to_year)]
+LenientStr = Annotated[str, BeforeValidator(_to_text)]
 
 
 # ── Document / Classifier ──────────────────────────────────────────────────────
@@ -12,8 +76,8 @@ from pydantic import AliasChoices, BaseModel, Field
 class ClassifiedDocument(BaseModel):
     id: str
     role: str  # syllabus | past_paper | teacher_priority | notes | pattern | unknown
-    year: Optional[int] = None
-    confidence: float = Field(ge=0, le=1)
+    year: Optional[LenientYear] = None
+    confidence: LenientRatio = Field(ge=0, le=1)
     clean_text: str
 
 
@@ -29,10 +93,10 @@ class SyllabusConcept(BaseModel):
 
 
 class SyllabusUnit(BaseModel):
-    unit: int
+    unit: LenientInt
     title: str
-    hours: Optional[float] = None
-    weightage_marks: Optional[float] = None
+    hours: Optional[LenientFloat] = None
+    weightage_marks: Optional[LenientFloat] = None
     topics: List[SyllabusConcept] = []
 
 
@@ -45,23 +109,23 @@ class SyllabusOutput(BaseModel):
 # ── Past Papers ────────────────────────────────────────────────────────────────
 
 class PastQuestion(BaseModel):
-    year: int
+    year: LenientYear
     exam_type: str = ""
-    q_no: str = ""
+    q_no: LenientStr = ""
     text: str
-    marks: int
+    marks: LenientInt
     type: str  # mcq | short | long | numerical | coding | viva
-    unit: int
+    unit: LenientInt
     topic: str
     difficulty: str  # easy | medium | hard
 
 
 class TopicStat(BaseModel):
     topic: str
-    count: int
-    years: List[int] = []
-    total_marks: int
-    last_seen: int
+    count: LenientInt
+    years: List[LenientYear] = []
+    total_marks: LenientInt
+    last_seen: LenientYear
 
 
 class PaperAnalystOutput(BaseModel):
@@ -90,24 +154,24 @@ class TeacherOutput(BaseModel):
 # ── Predictor factors ──────────────────────────────────────────────────────────
 
 class TopicFactors(BaseModel):
-    teacher: float = Field(ge=0, le=1)
-    frequency: float = Field(ge=0, le=1)
-    syllabus_weight: float = Field(ge=0, le=1)
-    recency: float = Field(ge=0, le=1)
-    type_fit: float = Field(ge=0, le=1)
+    teacher: LenientRatio = Field(ge=0, le=1)
+    frequency: LenientRatio = Field(ge=0, le=1)
+    syllabus_weight: LenientRatio = Field(ge=0, le=1)
+    recency: LenientRatio = Field(ge=0, le=1)
+    type_fit: LenientRatio = Field(ge=0, le=1)
 
 
 class TopicPrediction(BaseModel):
     topic: str
-    unit: int
+    unit: LenientInt
     factors: TopicFactors
     likely_question_types: List[str] = []
     evidence: str = ""
     confidence_note: str = ""
     # Computed by scoring.py:
-    score: Optional[float] = None
+    score: Optional[LenientFloat] = None
     label: Optional[str] = None
-    percentage: Optional[float] = None
+    percentage: Optional[LenientFloat] = None
 
 
 class PredictorRawOutput(BaseModel):
@@ -117,12 +181,12 @@ class PredictorRawOutput(BaseModel):
 # ── Mock Paper ─────────────────────────────────────────────────────────────────
 
 class MockQuestion(BaseModel):
-    id: str
+    id: LenientStr
     section: str
     text: str
-    marks: int
+    marks: LenientInt
     type: str
-    unit: int
+    unit: LenientInt
     topic: str
     difficulty: str
     source_tag: str
@@ -144,7 +208,7 @@ class MockPaperOutput(BaseModel):
 
 class BankQuestion(BaseModel):
     text: str
-    marks: int
+    marks: LenientInt
     type: str
     difficulty: str
     topic: str
@@ -155,7 +219,7 @@ class BankQuestion(BaseModel):
 
 
 class QuestionBankUnit(BaseModel):
-    unit: int
+    unit: LenientInt
     must: List[BankQuestion] = []
     should: List[BankQuestion] = []
     optional: List[BankQuestion] = []
@@ -171,7 +235,7 @@ class ModelAnswer(BaseModel):
     # Models often shorten these to "id"/"question"/"text" — accept both.
     question_id: str = Field(validation_alias=AliasChoices("question_id", "id"))
     question_text: str = Field(validation_alias=AliasChoices("question_text", "question", "text"))
-    marks: int
+    marks: LenientInt
     answer: str
     marking_scheme: List[str] = []
 
@@ -189,7 +253,7 @@ class Flashcard(BaseModel):
 
 
 class FormulaUnit(BaseModel):
-    unit: int
+    unit: LenientInt
     content: str  # markdown
 
 
@@ -203,12 +267,12 @@ class FlashcardsOutput(BaseModel):
 class StudyBlock(BaseModel):
     topic: str
     activity: str  # learn | practice | revise | mock
-    minutes: int
+    minutes: LenientInt
 
 
 class StudyDay(BaseModel):
     date: str
-    hours: float
+    hours: LenientFloat
     blocks: List[StudyBlock]
 
 
@@ -224,7 +288,7 @@ class VivaQuestion(BaseModel):
     answer_points: List[str] = []
     follow_ups: List[str] = []
     topic: str = ""
-    unit: Optional[int] = None
+    unit: Optional[LenientInt] = None
     kind: str = "theory"  # theory | application | practical | troubleshooting
 
 
@@ -252,14 +316,14 @@ class ExaminerOutput(BaseModel):
 
 class RubricPoint(BaseModel):
     point: str
-    awarded: float
-    max: float
+    awarded: LenientFloat
+    max: LenientFloat
     comment: str
 
 
 class GraderOutput(BaseModel):
-    marks_awarded: float
-    out_of: float
+    marks_awarded: LenientFloat
+    out_of: LenientFloat
     rubric: List[RubricPoint]
     missing_points: List[str] = []
     errors: List[str] = []
@@ -277,11 +341,11 @@ class WorkflowState(BaseModel):
     exam_type: str = "End-sem"
     exam_pattern: Dict[str, Any] = Field(default_factory=dict)
     difficulty_split: Dict[str, float] = Field(default_factory=lambda: {"easy": 20, "medium": 50, "hard": 30})
-    unit_focus: List[int] = Field(default_factory=list)
+    unit_focus: List[LenientInt] = Field(default_factory=list)
     include_topics: List[str] = Field(default_factory=list)
     exclude_topics: List[str] = Field(default_factory=list)
     exam_date: Optional[str] = None
-    hours_per_day: float = 4.0
+    hours_per_day: LenientFloat = 4.0
     mode: str = "Creative"
     language: str = "hinglish"
     answer_length: Dict[str, str] = Field(default_factory=lambda: {
