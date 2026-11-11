@@ -47,7 +47,7 @@ def test_light_theme_text_is_readable():
         "engine ready": (_token(root, "blue"), _token(root, "blue-soft")),
         "engine in use": (_token(root, "green"), _token(root, "green-soft")),
         "engine paused": (_token(root, "red"), _token(root, "red-soft")),
-        "placeholder": ("#676767", "#ffffff"),
+        "placeholder": ("#565656", "#ffffff"),
     }, "light")
 
 
@@ -59,7 +59,7 @@ def test_dark_theme_text_is_readable():
         "engine ready": (_token(dark, "blue"), _token(dark, "blue-soft")),
         "engine in use": (_token(dark, "green"), _token(dark, "green-soft")),
         "engine paused": (_token(dark, "red"), _token(dark, "red-soft")),
-        "placeholder": ("#9a9488", "#1b1b1b"),
+        "placeholder": ("#b3ada0", "#1b1b1b"),
         "link hover on yellow": ("#0a0a0a", "#ffe600"),
     }, "dark")
 
@@ -72,6 +72,11 @@ def test_native_controls_follow_the_page_theme():
     for selector in (".viewtab", ".tab", ".icon-btn"):
         block = _block(selector)
         assert "color:" in block, f"{selector} must set its own text colour"
+
+
+def test_hidden_results_section_stays_hidden():
+    match = re.search(r"#results\[hidden\]\s*\{[^}]*display:\s*none", CSS)
+    assert match, "#results { display:grid } must not leak the empty results UI"
 
 
 def test_engines_have_a_colour_class_per_state():

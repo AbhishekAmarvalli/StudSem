@@ -215,7 +215,7 @@ code, .mono { font-family: var(--font-mono); }
 .btn.lime { background: var(--lime); }
 .btn.sm { padding: .45rem .75rem; font-size: .7rem; box-shadow: 3px 3px 0 var(--ink); }
 .btn.block { width: 100%; }
-.btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: 3px 3px 0 var(--ink); }
+.btn:disabled { opacity: .62; cursor: not-allowed; box-shadow: 3px 3px 0 var(--ink); }
 
 /* ── View tabs ───────────────────────────────────────────────────────────── */
 
@@ -349,7 +349,7 @@ textarea {
   box-shadow: inset 3px 3px 0 rgba(10, 10, 10, .06);
 }
 
-input::placeholder, textarea::placeholder { color: #676767; }
+input::placeholder, textarea::placeholder { color: #565656; }
 
 input:focus, select:focus, textarea:focus {
   outline: 3px solid var(--pink);
@@ -671,6 +671,9 @@ details.advanced h3:first-child { margin-top: 0; }
 
 #results { margin-top: 2rem; display: grid; gap: 1.2rem; }
 
+/* The grid display above would otherwise beat the [hidden] attribute. */
+#results[hidden] { display: none; }
+
 .result-head {
   border: var(--line);
   background: var(--cyan);
@@ -911,7 +914,7 @@ html[data-theme="dark"] textarea {
 }
 
 html[data-theme="dark"] input::placeholder,
-html[data-theme="dark"] textarea::placeholder { color: #9a9488; }
+html[data-theme="dark"] textarea::placeholder { color: #b3ada0; }
 
 html[data-theme="dark"] .chip span:hover,
 html[data-theme="dark"] .output:hover,
