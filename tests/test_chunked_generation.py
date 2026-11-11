@@ -262,6 +262,56 @@ def test_model_answers_total_failure_raises(monkeypatch):
         G.generate_model_answers({"mock_paper": _mock_paper()})
 
 
+def test_large_section_is_split_into_question_batches(monkeypatch):
+    calls = []
+
+    def fake(system_prompt=None, user_prompt="", **kwargs):
+        calls.append(user_prompt)
+        ids = re.findall(r'"id": "([^"]+)"', user_prompt)
+        return json.dumps({"answers": [{
+            "question_id": qid, "question_text": f"Q{qid}", "marks": 5,
+            "answer": "A", "marking_scheme": [],
+        } for qid in ids]})
+
+    monkeypatch.setattr(G, "call_llm", fake)
+    questions = [
+        MockQuestion(
+            id=f"A{index}", section="A", text=f"Question {index}", marks=5,
+            type="short", unit=1, topic="t", difficulty="easy", source_tag="new",
+        )
+        for index in range(1, 8)
+    ]
+    paper = MockPaperOutput(header={}, marks_check={}, sections=[
+        MockSection(name="A", instructions="", questions=questions)
+    ])
+    result = G.generate_model_answers({"mock_paper": paper})
+    assert len(calls) == 2, "seven questions split into batches of five"
+    assert "batch 1 of 2" in calls[0]
+    assert "batch 2 of 2" in calls[1]
+    assert [answer.question_id for answer in result.answers] == [
+        f"A{index}" for index in range(1, 8)
+    ]
+
+
+def test_chunk_progress_is_reported(monkeypatch):
+    messages = []
+    token = G.set_progress_reporter(messages.append)
+    try:
+        monkeypatch.setattr(G, "call_llm", _paper_fake([]))
+        state = {
+            "predictions": [_topic(1)],
+            "syllabus": _syllabus([1, 2]),
+            "exam_pattern": {"sections": ["A: 5 x 10", "B: 5 x 10"], "num_questions": 20},
+        }
+        G.generate_mock_paper(state)
+    finally:
+        G.reset_progress_reporter(token)
+    assert messages == [
+        "Writing mock paper section 1/2: A: 5 x 10",
+        "Writing mock paper section 2/2: B: 5 x 10",
+    ]
+
+
 def test_single_section_paper_stays_single_call(monkeypatch):
     calls = []
     monkeypatch.setattr(G, "call_llm", _answers_fake(calls))

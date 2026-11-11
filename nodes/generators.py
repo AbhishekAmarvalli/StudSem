@@ -7,7 +7,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from contextvars import ContextVar
+from typing import Any, Callable, Dict, List, Optional
 
 from llm_client import call_llm, parse_json_response
 from prompt_loader import system_prompt, build_prompt
@@ -17,6 +18,25 @@ from schemas import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Live chunk progress for the UI. A context variable keeps concurrent Streamlit
+# sessions from seeing each other's messages.
+_progress_reporter: ContextVar = ContextVar("generation_progress", default=None)
+
+
+def set_progress_reporter(reporter: Optional[Callable[[str], None]]) -> object:
+    """Route chunk messages to the UI; returns a token for reset_progress_reporter."""
+    return _progress_reporter.set(reporter)
+
+
+def reset_progress_reporter(token: object) -> None:
+    _progress_reporter.reset(token)
+
+
+def _report(message: str) -> None:
+    reporter = _progress_reporter.get()
+    if reporter is not None:
+        reporter(message)
 
 
 def _priority_summary(topics: List[TopicPrediction]) -> str:
@@ -101,6 +121,7 @@ def generate_mock_paper(
     sections = _pattern_sections(pattern)
     if len(sections) > 1 and _planned_question_count(pattern) > MOCK_PAPER_QUESTION_LIMIT:
         return _generate_mock_paper_by_section(state, base_prompt, sections, warnings)
+    _report("Writing mock paper")
     raw = call_llm(system_prompt=system_prompt(), user_prompt=base_prompt)
     return parse_json_response(raw, MockPaperOutput, retry_prompt=base_prompt)
 
@@ -118,6 +139,7 @@ def _generate_mock_paper_by_section(
     failures: List[str] = []
 
     for index, section in enumerate(sections, 1):
+        _report(f"Writing mock paper section {index}/{len(sections)}: {section}")
         prompt = (
             base_prompt
             + f"\n\nThis paper is long, so write ONLY section {index} of {len(sections)}: {section}"
@@ -226,6 +248,7 @@ def generate_question_bank(
     groups = _bank_unit_groups(state)
 
     if len(groups) <= 1:
+        _report("Building question bank")
         user_prompt = _bank_prompt(state, _syllabus_json(syllabus), topics) + suffix
         raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
         return parse_json_response(raw, QuestionBankOutput, retry_prompt=user_prompt)
@@ -233,7 +256,10 @@ def generate_question_bank(
     notes = warnings if warnings is not None else []
     merged: List[QuestionBankUnit] = []
     failures: List[str] = []
-    for group in groups:
+    for position, group in enumerate(groups, 1):
+        _report(
+            f"Building question bank: units {group} (chunk {position}/{len(groups)})"
+        )
         group_set = set(group)
         subset = [t for t in topics if getattr(t, "unit", None) in group_set]
         user_prompt = (
@@ -270,18 +296,36 @@ def question_bank_node(state: dict) -> dict:
 
 # ── Model Answers ──────────────────────────────────────────────────────────────
 
+# Answers are the longest artifact per question, so a section is split again:
+# five questions per reply keeps every response well inside the output limit.
+ANSWERS_QUESTIONS_PER_CALL = 5
+
+
+def _answer_batches(questions: List[Any]) -> List[List[Any]]:
+    return [
+        questions[i:i + ANSWERS_QUESTIONS_PER_CALL]
+        for i in range(0, len(questions), ANSWERS_QUESTIONS_PER_CALL)
+    ]
+
+
 def _answers_prompt(
     state: Dict[str, Any],
     questions: List[Any],
     section_name: Optional[str] = None,
+    batch: Optional[tuple] = None,
 ) -> str:
     questions_text = json.dumps([q.dict() for q in questions], indent=2)
-    scope = (
-        f"\n\nAnswer ONLY the questions in section '{section_name}'. "
-        "Do not write answers for any other section."
-        if section_name
-        else ""
-    )
+    scope = ""
+    if section_name:
+        scope = f"\n\nAnswer ONLY the questions in section '{section_name}'."
+        if batch:
+            index, count = batch
+            scope += (
+                f" This is batch {index} of {count} for that section; answer only the"
+                " questions listed below."
+            )
+        else:
+            scope += " Do not write answers for any other section."
     return (
         build_prompt("P6c")
         + _exam_context(state)
@@ -304,10 +348,18 @@ def generate_model_answers(
     if not sections:
         return ModelAnswersOutput(answers=[])
 
-    # A full paper's answers overflow one reply, so long papers are answered one
-    # section per call. One section keeps the original single-call path.
-    if len(sections) == 1:
-        user_prompt = _answers_prompt(state, sections[0].questions)
+    # Answers are long, so long papers are written one section per call and a
+    # section with many questions is split again into batches. A paper that fits
+    # in one batch keeps the original single-call path.
+    work = []
+    for section in sections:
+        batches = _answer_batches(section.questions)
+        for index, batch in enumerate(batches, 1):
+            work.append((section, batch, index, len(batches)))
+
+    if len(work) == 1:
+        _report("Writing model answers")
+        user_prompt = _answers_prompt(state, work[0][1])
         raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
         return parse_json_response(raw, ModelAnswersOutput, retry_prompt=user_prompt)
 
@@ -316,14 +368,19 @@ def generate_model_answers(
     failures: List[str] = []
     seen = set()
 
-    for section in sections:
-        user_prompt = _answers_prompt(state, section.questions, section.name)
+    for section, batch, index, count in work:
+        batched = count > 1
+        label = f"{section.name} (batch {index}/{count})" if batched else section.name
+        _report(f"Writing model answers: {label}")
+        user_prompt = _answers_prompt(
+            state, batch, section.name, (index, count) if batched else None
+        )
         try:
             raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
             part = parse_json_response(raw, ModelAnswersOutput, retry_prompt=user_prompt)
         except Exception as exc:
-            logger.warning("Model answers for section %s failed: %s", section.name, exc)
-            failures.append(f"{section.name}: {exc}")
+            logger.warning("Model answers for %s failed: %s", label, exc)
+            failures.append(f"{label}: {exc}")
             continue
         for answer in part.answers:
             key = (answer.question_id, answer.question_text)

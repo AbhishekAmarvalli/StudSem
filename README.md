@@ -27,6 +27,18 @@ EXAMINER (Groq) → retry if fail → EXPORT (PDF | HTML | Google Sheets)
 SEPARATE: ANSWER GRADER
 ```
 
+### Generation chunking
+
+Long artifacts are built in pieces so a large subject can't lose its tail to an output-token limit. Thresholds:
+
+| Artifact | One call covers | Above that |
+|---|---|---|
+| Mock paper | up to 12 planned questions, or a single section | one call per section; header and `marks_check` merged afterwards |
+| Question bank | up to 3 units | one call per batch of 3 units, merged and de-duplicated |
+| Model answers | up to 5 questions total | one call per section, then per 5-question batch within a section |
+
+A failed chunk keeps the rest of the artifact and adds a warning naming the missing section or units. If every chunk fails the run errors out instead of returning an empty artifact. While running, the Streamlit progress box shows the chunk in flight, e.g. `⏳ Writing mock paper section 2/3: …`.
+
 ---
 
 ## Landing Page (GitHub Pages)

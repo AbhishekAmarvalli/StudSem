@@ -558,12 +558,14 @@ def _execute(state: dict) -> None:
     with st.status("Preparing your exam pack…", expanded=True) as status:
         progress = st.progress(0.0, text="Starting")
         stage_log = st.empty()
+        chunk_line = st.empty()
         lines = []
 
         def tick(label: str) -> None:
             nonlocal done
             done += 1
             lines.append(f"✓ {label}")
+            chunk_line.caption("")
             progress.progress(min(1.0, done / total), text=f"Step {done} of {total}: {label}")
             stage_log.markdown("  \n".join(lines))
 
@@ -577,13 +579,24 @@ def _execute(state: dict) -> None:
             tick("Documents read")
 
         graph = build_graph(state["outputs_wanted"], exam_type=state["exam_type"])
-        for chunk in graph.stream(final, {"recursion_limit": 50}):
-            for node_name, node_output in chunk.items():
-                if isinstance(node_output, dict):
-                    final.update(node_output)
-                    for warning in node_output.get("warnings") or []:
-                        st.warning(str(warning))
-                tick(NODE_LABELS.get(node_name, node_name.replace("_", " ").title()))
+
+        from nodes import generators as generation
+
+        # Long generations run in chunks; show which one is in flight so a slow
+        # node doesn't look frozen between step ticks.
+        token = generation.set_progress_reporter(
+            lambda message: chunk_line.caption(f"⏳ {message}")
+        )
+        try:
+            for chunk in graph.stream(final, {"recursion_limit": 50}):
+                for node_name, node_output in chunk.items():
+                    if isinstance(node_output, dict):
+                        final.update(node_output)
+                        for warning in node_output.get("warnings") or []:
+                            st.warning(str(warning))
+                    tick(NODE_LABELS.get(node_name, node_name.replace("_", " ").title()))
+        finally:
+            generation.reset_progress_reporter(token)
 
         status.update(label="Exam pack ready", state="complete")
 
