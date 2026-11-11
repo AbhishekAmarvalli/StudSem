@@ -806,6 +806,84 @@ footer {
 
 footer .foot-brand { font-family: var(--font-head); font-size: 1.1rem; }
 
+/* ── Dark theme ──────────────────────────────────────────────────────────────
+   Toggled from the top bar. The saved choice is applied before first paint
+   (inline script in index.html); with no saved choice the OS setting wins.
+   Accent fills stay bright, so anything on lime/pink/cyan/yellow keeps dark
+   ink text in both themes.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+html[data-theme="dark"] {
+  --ink: #f4efe2;
+  --paper: #121212;
+  --white: #1b1b1b;
+  --muted: #c8c2b4;
+
+  --line: 4px solid var(--ink);
+  --line-thin: 3px solid var(--ink);
+  --shadow: 8px 8px 0 var(--ink);
+  --shadow-sm: 5px 5px 0 var(--ink);
+}
+
+html[data-theme="dark"] body {
+  background-image:
+    linear-gradient(to right, rgba(244, 239, 226, .07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(244, 239, 226, .07) 1px, transparent 1px);
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+  box-shadow: inset 3px 3px 0 rgba(244, 239, 226, .06);
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder { color: #9a9488; }
+
+html[data-theme="dark"] .chip span:hover,
+html[data-theme="dark"] .output:hover,
+html[data-theme="dark"] details.advanced > summary:hover,
+html[data-theme="dark"] .tab:hover { background: #2c2a12; }
+
+html[data-theme="dark"] .dropzone:hover,
+html[data-theme="dark"] .dropzone.hot { background: #1e2a14; }
+
+html[data-theme="dark"] .viva-panel { background: #14242b; }
+html[data-theme="dark"] table.plan tr:nth-child(even) td { background: #211e16; }
+
+/* Bright accent fills need dark ink text, not the light --ink. */
+html[data-theme="dark"] .pill.ok,
+html[data-theme="dark"] .pill.bad,
+html[data-theme="dark"] .btn:hover:not(:disabled),
+html[data-theme="dark"] .btn.primary,
+html[data-theme="dark"] .btn.primary:hover:not(:disabled),
+html[data-theme="dark"] .btn.cyan,
+html[data-theme="dark"] .btn.lime,
+html[data-theme="dark"] .viewtab:hover,
+html[data-theme="dark"] .step-num,
+html[data-theme="dark"] .output:has(input:checked),
+html[data-theme="dark"] .summary,
+html[data-theme="dark"] .stage.done,
+html[data-theme="dark"] .stage.running,
+html[data-theme="dark"] .warn,
+html[data-theme="dark"] .result-head,
+html[data-theme="dark"] .marks-big,
+html[data-theme="dark"] .group-title .tag { color: #0a0a0a; }
+
+/* Panels that intentionally stay on the plain card colour. */
+html[data-theme="dark"] .summary.plain { color: var(--ink); }
+html[data-theme="dark"] .summary.plain dt { color: var(--muted); }
+html[data-theme="dark"] .result-meta span { color: var(--ink); }
+
+/* The idle pill sits on --paper, which is dark in this theme. */
+html[data-theme="dark"] .pill.idle { background: var(--white); color: var(--ink); }
+
+html[data-theme="dark"] .stage.done .box { background: #0a0a0a; color: var(--lime); }
+
+.theme-toggle { min-width: 92px; }
+.theme-toggle .theme-icon { font-size: .9rem; line-height: 1; }
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 
 @media (max-width: 1040px) {

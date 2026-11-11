@@ -37,6 +37,32 @@
     result: null,
   };
 
+  /* ── Theme ──────────────────────────────────────────────────────────── */
+
+  const THEME_KEY = "studsem-theme";
+  const themeToggle = $("#theme-toggle");
+
+  function applyTheme(theme, persist) {
+    const dark = theme === "dark";
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    themeToggle.setAttribute("aria-pressed", String(dark));
+    themeToggle.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+    themeToggle.title = dark ? "Switch to light mode" : "Switch to dark mode";
+    $(".theme-icon", themeToggle).textContent = dark ? "☀️" : "🌙";
+    $(".theme-label", themeToggle).textContent = dark ? "Light" : "Dark";
+    if (persist) {
+      try {
+        localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+      } catch (err) {
+        /* private mode: keep the theme for this page only */
+      }
+    }
+  }
+
+  themeToggle.addEventListener("click", () => {
+    applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark", true);
+  });
+
   /* ── API key status ─────────────────────────────────────────────────── */
 
   async function loadHealth() {
@@ -836,6 +862,7 @@
   today.setDate(today.getDate() + 14);
   $("#exam-date").value = today.toISOString().slice(0, 10);
 
+  applyTheme(document.documentElement.dataset.theme || "light", false);
   loadHealth();
   syncViva();
   renderFiles();

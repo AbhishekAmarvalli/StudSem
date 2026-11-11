@@ -5,10 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>StudSem — exam prep that shows its evidence</title>
 <meta name="description" content="Local StudSem app: upload your syllabus, past papers and teacher hints, then get a ranked topic list, mock paper, study plan and viva questions for any subject.">
+<meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23ffe600' stroke='%230a0a0a' stroke-width='6'/%3E%3Ctext x='32' y='45' font-family='Arial Black,sans-serif' font-size='30' text-anchor='middle' fill='%230a0a0a'%3ESS%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script>
+  /* Apply the saved/OS theme before first paint so dark mode never flashes. */
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem("studsem-theme"); } catch (e) {}
+    var dark = saved ? saved === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+  })();
+</script>
 <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
@@ -25,6 +35,10 @@
   </a>
   <div class="topbar-right">
     <span class="pill idle" id="api-pill" role="status"><span class="dot" aria-hidden="true"></span> checking keys…</span>
+    <button class="btn ghost sm theme-toggle" id="theme-toggle" type="button"
+            aria-pressed="false" aria-label="Switch to dark mode" title="Switch to dark mode">
+      <span class="theme-icon" aria-hidden="true">🌙</span><span class="theme-label">Dark</span>
+    </button>
     <a class="btn ghost sm" href="https://github.com/AbhishekAmarvalli/StudSem" target="_blank" rel="noopener">GitHub ↗</a>
   </div>
 </header>
@@ -268,7 +282,7 @@
           <button class="btn primary block" id="run-btn" type="button">Run the pipeline →</button>
           <p class="aside-note" id="run-note">Takes a few minutes. Every percentage is an evidence-based estimate capped at 90% — nothing is guaranteed.</p>
         </div>
-        <div class="summary" style="background: var(--white);">
+        <div class="summary plain">
           <h2>What happens</h2>
           <p style="font-size:.82rem;">Files are read once, then the pipeline sorts them, reads the syllabus, mines past papers, applies teacher hints, scores every topic, and only then writes your outputs.</p>
           <p class="aside-note" style="font-size:.72rem;">Everything runs on your machine. Only the AI calls leave it.</p>
@@ -354,7 +368,7 @@
       </div>
 
       <aside class="aside">
-        <div class="summary" style="background: var(--white);">
+        <div class="summary plain">
           <h2>How grading works</h2>
           <p style="font-size:.82rem;">A university-style examiner scores your answer against the rubric: credit for correct points phrased differently, penalties for factual errors, no reward for length.</p>
         </div>
