@@ -1,0 +1,270 @@
+"""
+tests/test_chunked_generation.py – Chunked generation behaviour.
+
+The generators switch between one call and one call per chunk; these tests pin
+down where the switch happens, how chunks are merged, and what a failed chunk
+does to the artifact.
+"""
+import json
+import re
+
+import pytest
+
+import nodes.generators as G
+from schemas import (
+    MockQuestion, MockPaperOutput, MockSection, SyllabusOutput, SyllabusUnit,
+    TopicFactors, TopicPrediction,
+)
+
+
+def _topic(unit):
+    return TopicPrediction(
+        topic=f"Topic {unit}",
+        unit=unit,
+        factors=TopicFactors(
+            teacher=0.5, frequency=0.5, syllabus_weight=0.5, recency=0.5, type_fit=0.5
+        ),
+    )
+
+
+def _syllabus(units):
+    return SyllabusOutput(
+        subject="DBMS",
+        units=[SyllabusUnit(unit=unit, title=f"Unit {unit}", topics=[]) for unit in units],
+    )
+
+
+def _paper_json(marks="10"):
+    return json.dumps({
+        "header": {"title": "DBMS Mock"},
+        "sections": [{
+            "name": "A",
+            "instructions": "",
+            "questions": [{
+                "id": "1", "section": "A", "text": "Question?", "marks": marks,
+                "type": "long", "unit": 1, "topic": "Topic 1",
+                "difficulty": "hard", "source_tag": "new",
+            }],
+        }],
+        "marks_check": {},
+    })
+
+
+def _bank_json(units):
+    return json.dumps({"units": [{
+        "unit": unit,
+        "must": [
+            {"text": f"Unit {unit} repeated", "marks": "5 marks", "type": "short",
+             "difficulty": "easy", "topic": "t", "source_tag": "new"},
+            {"text": f"Unit {unit} repeated", "marks": 5, "type": "short",
+             "difficulty": "easy", "topic": "t", "source_tag": "new"},
+            {"text": f"Unit {unit} unique", "marks": 5, "type": "short",
+             "difficulty": "easy", "topic": "t", "source_tag": "new"},
+        ],
+        "should": [],
+        "optional": [],
+    } for unit in units]})
+
+
+def _paper_fake(calls, failing=()):
+    def fake(system_prompt=None, user_prompt="", **kwargs):
+        calls.append(user_prompt)
+        match = re.search(r"write ONLY section \d+ of \d+: (.+)", user_prompt)
+        if match and any(name in match.group(1) for name in failing):
+            raise RuntimeError("model returned prose")
+        return _paper_json()
+    return fake
+
+
+def _bank_fake(calls, failing=()):
+    def fake(system_prompt=None, user_prompt="", **kwargs):
+        calls.append(user_prompt)
+        match = re.search(r"Cover ONLY units \[(.*?)\]", user_prompt)
+        if not match:
+            return _bank_json([1, 2])
+        units = json.loads("[" + match.group(1) + "]")
+        if any(name in units for name in failing):
+            raise RuntimeError("model returned prose")
+        return _bank_json(units)
+    return fake
+
+
+def _answers_fake(calls, failing=()):
+    def fake(system_prompt=None, user_prompt="", **kwargs):
+        calls.append(user_prompt)
+        match = re.search(r"Answer ONLY the questions in section '([^']+)'", user_prompt)
+        name = match.group(1) if match else "A"
+        if name in failing:
+            raise RuntimeError("output cut off")
+        return json.dumps({"answers": [{
+            "question_id": f"{name}1", "question_text": f"{name} question",
+            "marks": "10 marks", "answer": "Because.", "marking_scheme": ["1 mark"],
+        }]})
+    return fake
+
+
+# ── Mock paper ────────────────────────────────────────────────────────────────
+
+def test_small_paper_stays_single_call(monkeypatch):
+    calls = []
+    monkeypatch.setattr(G, "call_llm", _paper_fake(calls))
+    state = {
+        "predictions": [_topic(1), _topic(2)],
+        "syllabus": _syllabus([1, 2]),
+        "exam_pattern": {"sections": ["A: 4 x 5", "B: 5 x 10"], "num_questions": 9},
+    }
+    G.generate_mock_paper(state)
+    assert len(calls) == 1
+    assert "write ONLY section" not in calls[0]
+
+
+def test_large_paper_is_built_section_by_section(monkeypatch):
+    calls = []
+    monkeypatch.setattr(G, "call_llm", _paper_fake(calls))
+    state = {
+        "predictions": [_topic(1), _topic(2)],
+        "syllabus": _syllabus([1, 2]),
+        "exam_pattern": {
+            "sections": ["A: 5 x 10", "B: 5 x 10"],
+            "num_questions": 20,
+            "total_marks": 20,
+        },
+    }
+    paper = G.generate_mock_paper(state)
+    assert len(calls) == 2
+    assert len(paper.sections) == 2
+    assert paper.marks_check == {
+        "total": 20, "computed": "per-section", "target": 20, "match": True,
+    }
+    assert paper.header["total_marks"] == 20
+
+
+def test_large_paper_partial_failure_keeps_the_rest(monkeypatch):
+    calls = []
+    monkeypatch.setattr(G, "call_llm", _paper_fake(calls, failing=("B:",)))
+    state = {
+        "predictions": [_topic(1)],
+        "syllabus": _syllabus([1, 2]),
+        "exam_pattern": {"sections": ["A: 5 x 10", "B: 5 x 10"], "num_questions": 20},
+    }
+    warnings = []
+    paper = G.generate_mock_paper(state, warnings)
+    assert len(paper.sections) == 1
+    assert "B: 5 x 10" in warnings[0]
+    assert "missing" in warnings[0]
+
+
+def test_large_paper_total_failure_raises(monkeypatch):
+    def always_fail(system_prompt=None, user_prompt="", **kwargs):
+        raise RuntimeError("model returned prose")
+
+    monkeypatch.setattr(G, "call_llm", always_fail)
+    state = {
+        "predictions": [_topic(1)],
+        "syllabus": _syllabus([1, 2]),
+        "exam_pattern": {"sections": ["A: 5 x 10", "B: 5 x 10"], "num_questions": 20},
+    }
+    with pytest.raises(RuntimeError, match="every section"):
+        G.generate_mock_paper(state)
+
+
+# ── Question bank ─────────────────────────────────────────────────────────────
+
+def test_question_bank_batches_units_and_dedupes(monkeypatch):
+    calls = []
+    monkeypatch.setattr(G, "call_llm", _bank_fake(calls))
+    state = {
+        "predictions": [_topic(unit) for unit in range(1, 9)],
+        "syllabus": _syllabus(range(1, 9)),
+    }
+    bank = G.generate_question_bank(state)
+    assert len(calls) == 3
+    assert [unit.unit for unit in bank.units] == list(range(1, 9))
+    assert all(len(unit.must) == 2 for unit in bank.units), "duplicate texts dropped"
+    assert bank.units[0].must[0].marks == 5, '"5 marks" coerced'
+
+
+def test_question_bank_partial_failure_warns(monkeypatch):
+    calls = []
+    monkeypatch.setattr(G, "call_llm", _bank_fake(calls, failing=(4,)))
+    state = {
+        "predictions": [_topic(unit) for unit in range(1, 7)],
+        "syllabus": _syllabus(range(1, 7)),
+    }
+    warnings = []
+    bank = G.generate_question_bank(state, warnings)
+    assert [unit.unit for unit in bank.units] == [1, 2, 3]
+    assert "units [4, 5, 6]" in warnings[0]
+
+
+def test_question_bank_total_failure_raises(monkeypatch):
+    def always_fail(system_prompt=None, user_prompt="", **kwargs):
+        raise RuntimeError("model returned prose")
+
+    monkeypatch.setattr(G, "call_llm", always_fail)
+    state = {
+        "predictions": [_topic(unit) for unit in range(1, 7)],
+        "syllabus": _syllabus(range(1, 7)),
+    }
+    with pytest.raises(RuntimeError, match="every unit chunk"):
+        G.generate_question_bank(state)
+
+
+def test_small_question_bank_stays_single_call(monkeypatch):
+    calls = []
+    monkeypatch.setattr(G, "call_llm", _bank_fake(calls))
+    state = {"predictions": [_topic(1), _topic(2)], "syllabus": _syllabus([1, 2])}
+    G.generate_question_bank(state)
+    assert len(calls) == 1
+    assert "Cover ONLY units" not in calls[0]
+
+
+# ── Model answers ─────────────────────────────────────────────────────────────
+
+def _mock_paper(sections=("A", "B")):
+    return MockPaperOutput(header={}, marks_check={}, sections=[
+        MockSection(name=name, instructions="", questions=[
+            MockQuestion(
+                id=f"{name}1", section=name, text=f"{name} question", marks=10,
+                type="long", unit=1, topic="t", difficulty="hard", source_tag="new",
+            )
+        ])
+        for name in sections
+    ])
+
+
+def test_model_answers_are_written_section_by_section(monkeypatch):
+    calls = []
+    monkeypatch.setattr(G, "call_llm", _answers_fake(calls))
+    result = G.generate_model_answers({"mock_paper": _mock_paper()})
+    assert len(calls) == 2
+    assert [answer.question_id for answer in result.answers] == ["A1", "B1"]
+    assert result.answers[0].marks == 10, '"10 marks" coerced'
+    assert "Answer ONLY the questions in section 'A'" in calls[0]
+
+
+def test_model_answers_partial_failure_warns(monkeypatch):
+    calls = []
+    monkeypatch.setattr(G, "call_llm", _answers_fake(calls, failing=("B",)))
+    warnings = []
+    result = G.generate_model_answers({"mock_paper": _mock_paper()}, warnings)
+    assert [answer.question_id for answer in result.answers] == ["A1"]
+    assert "B:" in warnings[0]
+    assert "missing" in warnings[0]
+
+
+def test_model_answers_total_failure_raises(monkeypatch):
+    def always_fail(system_prompt=None, user_prompt="", **kwargs):
+        raise RuntimeError("output cut off")
+
+    monkeypatch.setattr(G, "call_llm", always_fail)
+    with pytest.raises(RuntimeError, match="every section"):
+        G.generate_model_answers({"mock_paper": _mock_paper()})
+
+
+def test_single_section_paper_stays_single_call(monkeypatch):
+    calls = []
+    monkeypatch.setattr(G, "call_llm", _answers_fake(calls))
+    G.generate_model_answers({"mock_paper": _mock_paper(sections=("A",))})
+    assert len(calls) == 1
+    assert "Answer ONLY" not in calls[0]

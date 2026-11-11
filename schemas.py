@@ -52,7 +52,7 @@ def _to_ratio(value: Any) -> float:
 
 
 def _to_year(value: Any) -> int:
-    """"2023-24", "May 2024" and "2024" all mean 2024; "2023-24" means 2023."""
+    """"2024", "May 2024" and "2023-24" all resolve to their stated year."""
     if isinstance(value, str):
         match = _YEAR_RE.search(value)
         if match:
@@ -233,7 +233,7 @@ class QuestionBankOutput(BaseModel):
 
 class ModelAnswer(BaseModel):
     # Models often shorten these to "id"/"question"/"text" — accept both.
-    question_id: str = Field(validation_alias=AliasChoices("question_id", "id"))
+    question_id: LenientStr = Field(validation_alias=AliasChoices("question_id", "id"))
     question_text: str = Field(validation_alias=AliasChoices("question_text", "question", "text"))
     marks: LenientInt
     answer: str

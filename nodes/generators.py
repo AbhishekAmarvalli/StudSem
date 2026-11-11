@@ -270,32 +270,84 @@ def question_bank_node(state: dict) -> dict:
 
 # ── Model Answers ──────────────────────────────────────────────────────────────
 
-def generate_model_answers(state: Dict[str, Any]) -> ModelAnswersOutput:
+def _answers_prompt(
+    state: Dict[str, Any],
+    questions: List[Any],
+    section_name: Optional[str] = None,
+) -> str:
+    questions_text = json.dumps([q.dict() for q in questions], indent=2)
+    scope = (
+        f"\n\nAnswer ONLY the questions in section '{section_name}'. "
+        "Do not write answers for any other section."
+        if section_name
+        else ""
+    )
+    return (
+        build_prompt("P6c")
+        + _exam_context(state)
+        + f"\n\nAnswer length guide: {state.get('answer_length', {})}"
+        + scope
+        + f"\n\nQuestions:\n{questions_text}"
+        + "\n\nReturn JSON with key 'answers'."
+    )
+
+
+def generate_model_answers(
+    state: Dict[str, Any], warnings: Optional[List[str]] = None
+) -> ModelAnswersOutput:
     mock_paper = state.get("mock_paper")
-    answer_length = state.get("answer_length", {})
 
     if mock_paper is None:
         return ModelAnswersOutput(answers=[])
 
-    questions_text = json.dumps(
-        [q.dict() for s in mock_paper.sections for q in s.questions],
-        indent=2,
-    )[:20000]
+    sections = [section for section in mock_paper.sections if section.questions]
+    if not sections:
+        return ModelAnswersOutput(answers=[])
 
-    user_prompt = (
-        build_prompt("P6c")
-        + _exam_context(state)
-        + f"\n\nAnswer length guide: {answer_length}"
-        + f"\n\nQuestions:\n{questions_text}"
-        + "\n\nReturn JSON with key 'answers'."
-    )
-    raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
-    return parse_json_response(raw, ModelAnswersOutput, retry_prompt=user_prompt)
+    # A full paper's answers overflow one reply, so long papers are answered one
+    # section per call. One section keeps the original single-call path.
+    if len(sections) == 1:
+        user_prompt = _answers_prompt(state, sections[0].questions)
+        raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
+        return parse_json_response(raw, ModelAnswersOutput, retry_prompt=user_prompt)
+
+    notes = warnings if warnings is not None else []
+    answers: List[Any] = []
+    failures: List[str] = []
+    seen = set()
+
+    for section in sections:
+        user_prompt = _answers_prompt(state, section.questions, section.name)
+        try:
+            raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
+            part = parse_json_response(raw, ModelAnswersOutput, retry_prompt=user_prompt)
+        except Exception as exc:
+            logger.warning("Model answers for section %s failed: %s", section.name, exc)
+            failures.append(f"{section.name}: {exc}")
+            continue
+        for answer in part.answers:
+            key = (answer.question_id, answer.question_text)
+            if key in seen:
+                continue
+            seen.add(key)
+            answers.append(answer)
+
+    if not answers:
+        raise RuntimeError(
+            "Model answer generation failed for every section: " + " | ".join(failures)
+        )
+    if failures:
+        notes.append("Model answers: " + "; ".join(failures) + " — those sections are missing.")
+    return ModelAnswersOutput(answers=answers)
 
 
 def model_answers_node(state: dict) -> dict:
-    result = generate_model_answers(state)
-    return {"model_answers": result, "progress": {**state.get("progress", {}), "model_answers": "done"}}
+    notes: List[str] = []
+    result = generate_model_answers(state, notes)
+    update = {"model_answers": result, "progress": {**state.get("progress", {}), "model_answers": "done"}}
+    if notes:
+        update["warnings"] = [*(state.get("warnings") or []), *notes]
+    return update
 
 
 # ── Flashcards + Formula Sheet ─────────────────────────────────────────────────
