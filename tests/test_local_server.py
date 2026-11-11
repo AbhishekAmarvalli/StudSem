@@ -257,7 +257,9 @@ def test_generation_chunks_are_streamed(monkeypatch):
     chunks = [event["message"] for event in events if event["type"] == "chunk"]
     assert chunks == [
         "Writing mock paper section 1/2: A: 5 x 10",
+        "Finished mock paper section 1/2: A: 5 x 10",
         "Writing mock paper section 2/2: B: 5 x 10",
+        "Finished mock paper section 2/2: B: 5 x 10",
     ]
     assert "done" in [event["type"] for event in events]
 

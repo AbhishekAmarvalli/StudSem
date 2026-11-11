@@ -11,6 +11,7 @@ import re
 import time
 import json
 import logging
+from contextvars import ContextVar
 from typing import Any, Dict, Optional
 
 from google import genai as genai_new
@@ -46,13 +47,61 @@ REQUEST_TIMEOUT_MS = 180_000
 PROVIDER_COOLDOWN_SECONDS = int(os.getenv("LLM_PROVIDER_COOLDOWN", "600"))
 _provider_down_until: Dict[str, float] = {}
 
+# Once a provider answers, prefer it for the next calls instead of probing the
+# preferred provider again on every chunk of the run.
+PROVIDER_STICKY_SECONDS = int(os.getenv("LLM_PROVIDER_STICKY_SECONDS", "900"))
+_provider_last_success: Dict[str, float] = {}
 
-def reset_provider_cooldowns() -> None:
+PROVIDER_ORDER = ("gemini", "openrouter", "groq")
+PROVIDER_LABELS = {"gemini": "Gemini", "openrouter": "OpenRouter", "groq": "Groq"}
+PROVIDER_API_KEYS = {
+    "gemini": "GEMINI_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+    "groq": "GROQ_API_KEY",
+}
+
+# Which provider answered the latest call, for progress messages.
+_last_provider: ContextVar[str] = ContextVar("last_provider", default="")
+
+
+def last_provider() -> str:
+    return _last_provider.get()
+
+
+def reset_provider_state() -> None:
     _provider_down_until.clear()
+    _provider_last_success.clear()
+    _last_provider.set("")
 
 
 def _provider_available(name: str) -> bool:
     return time.time() >= _provider_down_until.get(name, 0.0)
+
+
+def _provider_rank(name: str) -> int:
+    last = _provider_last_success.get(name)
+    if last and time.time() - last < PROVIDER_STICKY_SECONDS:
+        return 0
+    return 1
+
+
+def _ordered_providers() -> list:
+    return sorted(
+        PROVIDER_ORDER, key=lambda name: (_provider_rank(name), PROVIDER_ORDER.index(name))
+    )
+
+
+def _mark_provider_success(name: str) -> None:
+    _provider_last_success[name] = time.time()
+    _last_provider.set(PROVIDER_LABELS[name])
+
+
+def _is_transient(error: str) -> bool:
+    err = error.lower()
+    return any(
+        token in err
+        for token in ("rate", "quota", "429", "503", "unavailable", "overloaded", "temporarily")
+    )
 
 
 def _mark_provider_down(name: str, error: Exception) -> None:
@@ -225,7 +274,9 @@ def call_llm(
     if use_groq:
         for attempt in range(MAX_RETRIES):
             try:
-                return _call_groq(system_prompt, user_prompt, **kwargs)
+                result = _call_groq(system_prompt, user_prompt, **kwargs)
+                _mark_provider_success("groq")
+                return result
             except Exception as e:
                 err = str(e).lower()
                 if "rate" in err and attempt < MAX_RETRIES - 1:
@@ -234,88 +285,52 @@ def call_llm(
                     raise RuntimeError(f"Groq failed: {e}") from e
 
     errors: List[str] = []
-
-    # Gemini first
-    if not _provider_available("gemini"):
-        errors.append("Gemini: paused after a recent rate limit")
-    else:
-        for attempt in range(MAX_RETRIES):
-            try:
-                result = _call_gemini(system_prompt, user_prompt, **kwargs)
-                _mark_provider_up("gemini")
-                return result
-            except Exception as e:
-                err = str(e).lower()
-                # 503 / UNAVAILABLE / overloaded are temporary like a quota hit, so
-                # retry and then fall back instead of failing the whole run.
-                transient = (
-                    "rate" in err
-                    or "quota" in err
-                    or "429" in err
-                    or "503" in err
-                    or "unavailable" in err
-                    or "overloaded" in err
-                    or "temporarily" in err
-                )
-                if not transient:
-                    raise RuntimeError(f"Gemini failed: {e}") from e
-                if attempt < MAX_RETRIES - 1:
-                    _exponential_backoff(attempt)
-                    continue
-                _mark_provider_down("gemini", e)
-                logger.warning("Gemini quota hit. Falling back to OpenRouter…")
-                break
-
-    # OpenRouter fallback
-    if not os.getenv("OPENROUTER_API_KEY"):
-        errors.append("OpenRouter: OPENROUTER_API_KEY not set")
-    elif not _provider_available("openrouter"):
-        errors.append("OpenRouter: paused after a recent rate limit")
-    else:
-        for attempt in range(MAX_RETRIES):
-            try:
-                result = _call_openrouter(system_prompt, user_prompt, **kwargs)
-                _mark_provider_up("openrouter")
-                return result
-            except Exception as e:
-                err = str(e).lower()
-                if ("rate" in err or "429" in err) and attempt < MAX_RETRIES - 1:
-                    _exponential_backoff(attempt)
-                else:
-                    errors.append(f"OpenRouter: {e}")
-                    if "rate" in err or "429" in err:
-                        _mark_provider_down("openrouter", e)
-                    break
-
-    # Groq keeps content generation alive when Gemini and OpenRouter are both
-    # spent: it has a separate free-tier quota and is already configured for
-    # the examiner.
-    if not os.getenv("GROQ_API_KEY"):
-        errors.append("Groq: GROQ_API_KEY not set")
-    elif not _provider_available("groq"):
-        errors.append("Groq: paused after a recent rate limit")
-    else:
-        logger.warning("OpenRouter unavailable. Falling back to Groq…")
-        for attempt in range(MAX_RETRIES):
-            try:
-                result = _call_groq(system_prompt, user_prompt, **kwargs)
-                _mark_provider_up("groq")
-                return result
-            except Exception as e:
-                err = str(e).lower()
-                if ("rate" in err or "429" in err) and attempt < MAX_RETRIES - 1:
-                    _exponential_backoff(attempt)
-                else:
-                    errors.append(f"Groq: {e}")
-                    if "rate" in err or "429" in err:
-                        _mark_provider_down("groq", e)
-                    break
+    for name in _ordered_providers():
+        label = PROVIDER_LABELS[name]
+        key_var = PROVIDER_API_KEYS[name]
+        if not os.getenv(key_var):
+            errors.append(f"{label}: {key_var} not set")
+            continue
+        if not _provider_available(name):
+            errors.append(f"{label}: paused after a recent rate limit")
+            continue
+        try:
+            result = _attempt_provider(name, system_prompt, user_prompt, **kwargs)
+        except Exception as e:
+            errors.append(f"{label}: {e}")
+            if _is_transient(str(e)):
+                _mark_provider_down(name, e)
+            continue
+        _mark_provider_up(name)
+        _mark_provider_success(name)
+        return result
 
     raise RuntimeError(
         "All LLM providers failed.\n"
         + "\n".join(f"- {item}" for item in errors)
         + "\nCheck your API keys and free-tier quotas."
     )
+
+
+def _attempt_provider(
+    name: str, system_prompt: str, user_prompt: str, **kwargs: Any
+) -> str:
+    """Call one provider, retrying only temporary failures."""
+    caller = {
+        "gemini": _call_gemini,
+        "openrouter": _call_openrouter,
+        "groq": _call_groq,
+    }[name]
+    for attempt in range(MAX_RETRIES):
+        try:
+            return caller(system_prompt, user_prompt, **kwargs)
+        except Exception as e:
+            if not _is_transient(str(e)):
+                raise
+            if attempt < MAX_RETRIES - 1:
+                _exponential_backoff(attempt)
+                continue
+            raise
 
 
 def _lenient_json(text: str) -> Any:

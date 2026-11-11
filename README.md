@@ -37,7 +37,7 @@ Long artifacts are built in pieces so a large subject can't lose its tail to an 
 | Question bank | up to 3 units | one call per batch of 3 units, merged and de-duplicated |
 | Model answers | up to 5 questions total | one call per section, then per 5-question batch within a section |
 
-When the examiner rejects a paper, only the sections its issues name are regenerated; the rest are reused as-is. A section that comes back with fewer questions than its pattern (`7 x 2 marks`) asks for gets one continuation call for the remainder; if it is still short, the artifact is kept and a `only N of M questions` warning is added. A failed chunk keeps the rest of the artifact and adds a warning naming the missing section or units. If every chunk fails the run errors out instead of returning an empty artifact. While running, the Streamlit progress box shows the chunk in flight, e.g. `⏳ Writing mock paper section 2/3: …`.
+When the examiner rejects a paper, only the sections its issues name are regenerated; the rest are reused as-is. A section that comes back with fewer questions than its pattern (`7 x 2 marks`) asks for gets one continuation call for the remainder; if it is still short, the artifact is kept and a `only N of M questions` warning is added. A failed chunk keeps the rest of the artifact and adds a warning naming the missing section or units. If every chunk fails the run errors out instead of returning an empty artifact. While running, the Streamlit progress box shows the chunk in flight, e.g. `⏳ Writing mock paper section 2/3: …`, then which provider answered, e.g. `Finished mock paper section 2/3: … via Groq`.
 
 ---
 
@@ -201,6 +201,7 @@ Tests cover:
 | `google.api_core.exceptions.ResourceExhausted` | Gemini free quota hit. Calls fall back to OpenRouter, then Groq; add `OPENROUTER_API_KEY` / `GROQ_API_KEY` for a wider fallback net. |
 | `All LLM providers failed` | Gemini, OpenRouter and Groq were all rate-limited or keyless. The error lists each provider's reason; wait for a quota reset or set another key. |
 | Repeated 429s slow every chunk | A rate-limited provider is skipped for `LLM_PROVIDER_COOLDOWN` seconds (default 600) after it exhausts its retries, so later calls go straight to the next provider. Lower the value to retry sooner. |
+| Wondering which model answered | A provider that just succeeded stays first for `LLM_PROVIDER_STICKY_SECONDS` (default 900) instead of re-probing the preferred one each chunk; progress lines end with `via Gemini/OpenRouter/Groq`. |
 | `groq.RateLimitError` | Groq free tier limit. Wait or switch `GROQ_MODEL` to another free model. |
 | `404 NOT_FOUND` / `model_not_found` | A model ID was retired. Remove `GEMINI_MODEL` / `GROQ_MODEL` / `OPENROUTER_MODEL` from `.env` to use the current defaults, or set a live ID. |
 | Examiner skipped | `GROQ_API_KEY` is missing or the examiner call failed. The paper is still generated; it just is not cross-checked. |

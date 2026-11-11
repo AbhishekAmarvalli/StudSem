@@ -501,6 +501,7 @@ def test_chunk_progress_is_reported(monkeypatch):
     token = G.set_progress_reporter(messages.append)
     try:
         monkeypatch.setattr(G, "call_llm", _paper_fake([]))
+        monkeypatch.setattr(G, "last_provider", lambda: "Groq")
         state = {
             "predictions": [_topic(1)],
             "syllabus": _syllabus([1, 2]),
@@ -511,7 +512,9 @@ def test_chunk_progress_is_reported(monkeypatch):
         G.reset_progress_reporter(token)
     assert messages == [
         "Writing mock paper section 1/2: A: 5 x 10",
+        "Finished mock paper section 1/2: A: 5 x 10 via Groq",
         "Writing mock paper section 2/2: B: 5 x 10",
+        "Finished mock paper section 2/2: B: 5 x 10 via Groq",
     ]
 
 

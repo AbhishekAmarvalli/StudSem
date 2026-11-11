@@ -11,7 +11,7 @@ import re
 from contextvars import ContextVar
 from typing import Any, Callable, Dict, List, Optional
 
-from llm_client import call_llm, parse_json_response
+from llm_client import call_llm, last_provider, parse_json_response
 from prompt_loader import system_prompt, build_prompt
 from schemas import (
     MockPaperOutput, MockSection, QuestionBankOutput, QuestionBankUnit,
@@ -38,6 +38,12 @@ def _report(message: str) -> None:
     reporter = _progress_reporter.get()
     if reporter is not None:
         reporter(message)
+
+
+def _provider_tag() -> str:
+    """' via Groq' after a call, so the UI shows which provider answered."""
+    provider = last_provider()
+    return f" via {provider}" if provider else ""
 
 
 def _priority_summary(topics: List[TopicPrediction]) -> str:
@@ -280,6 +286,7 @@ def generate_mock_paper(
     _report("Writing mock paper")
     raw = call_llm(system_prompt=system_prompt(), user_prompt=base_prompt)
     paper = parse_json_response(raw, MockPaperOutput, retry_prompt=base_prompt)
+    _report(f"Mock paper written{_provider_tag()}")
     paper = _normalise_section_names(paper, sections)
     if warnings is not None:
         warnings.extend(_short_paper_warnings(paper, pattern, sections))
@@ -325,6 +332,10 @@ def _generate_mock_paper_by_section(
             part = _normalise_section_names(part, [section])
             if not any(item.questions for item in part.sections):
                 raise RuntimeError("the model returned no questions for this section")
+            _report(
+                f"Finished mock paper section {index}/{len(sections)}: {section}"
+                + _provider_tag()
+            )
         except Exception as exc:
             failures.append(f"{section}: {exc}")
             logger.warning("Mock paper section %s failed: %s", section, exc)
@@ -436,7 +447,9 @@ def generate_question_bank(
         _report("Building question bank")
         user_prompt = _bank_prompt(state, _syllabus_json(syllabus), topics) + suffix
         raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
-        return parse_json_response(raw, QuestionBankOutput, retry_prompt=user_prompt)
+        bank = parse_json_response(raw, QuestionBankOutput, retry_prompt=user_prompt)
+        _report(f"Question bank built{_provider_tag()}")
+        return bank
 
     notes = warnings if warnings is not None else []
     merged: List[QuestionBankUnit] = []
@@ -455,6 +468,7 @@ def generate_question_bank(
         try:
             raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
             part = parse_json_response(raw, QuestionBankOutput, retry_prompt=user_prompt)
+            _report(f"Finished question bank chunk {position}/{len(groups)}{_provider_tag()}")
         except Exception as exc:
             failures.append(f"units {group}: {exc}")
             logger.warning("Question bank chunk %s failed: %s", group, exc)
@@ -560,7 +574,9 @@ def generate_model_answers(
         _report("Writing model answers")
         user_prompt = _answers_prompt(state, work[0][1])
         raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
-        return parse_json_response(raw, ModelAnswersOutput, retry_prompt=user_prompt)
+        answers = parse_json_response(raw, ModelAnswersOutput, retry_prompt=user_prompt)
+        _report(f"Model answers written{_provider_tag()}")
+        return answers
 
     notes = warnings if warnings is not None else []
     answers: List[Any] = []
@@ -577,6 +593,7 @@ def generate_model_answers(
         try:
             raw = call_llm(system_prompt=system_prompt(), user_prompt=user_prompt)
             part = parse_json_response(raw, ModelAnswersOutput, retry_prompt=user_prompt)
+            _report(f"Finished model answers: {label}{_provider_tag()}")
         except Exception as exc:
             logger.warning("Model answers for %s failed: %s", label, exc)
             failures.append(f"{label}: {exc}")
