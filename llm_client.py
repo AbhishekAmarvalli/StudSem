@@ -1,8 +1,8 @@
 """
 llm_client.py – Unified LLM caller with retry + fallback.
 
-Priority: Gemini -> OpenRouter (fallback on rate-limit)
-Examiner calls always go to Groq.
+Priority: Gemini -> OpenRouter -> Groq (fallback on rate-limit)
+Examiner calls always go to Groq first.
 """
 from __future__ import annotations
 
@@ -235,26 +235,46 @@ def call_llm(
             else:
                 raise RuntimeError(f"Gemini failed: {e}") from e
 
-    # OpenRouter fallback
-    if not os.getenv("OPENROUTER_API_KEY"):
-        raise RuntimeError(
-            "Gemini rate-limited and OPENROUTER_API_KEY not set. "
-            "Add it to .env or Streamlit secrets."
-        )
-    for attempt in range(MAX_RETRIES):
-        try:
-            return _call_openrouter(system_prompt, user_prompt, **kwargs)
-        except Exception as e:
-            err = str(e).lower()
-            if "rate" in err and attempt < MAX_RETRIES - 1:
-                _exponential_backoff(attempt)
-            else:
-                raise RuntimeError(
-                    f"All LLM providers failed. Last error: {e}\n"
-                    "Check your API keys and free-tier quotas."
-                ) from e
+    errors = []
 
-    raise RuntimeError("LLM call failed after all retries.")
+    # OpenRouter fallback
+    if os.getenv("OPENROUTER_API_KEY"):
+        for attempt in range(MAX_RETRIES):
+            try:
+                return _call_openrouter(system_prompt, user_prompt, **kwargs)
+            except Exception as e:
+                err = str(e).lower()
+                if "rate" in err and attempt < MAX_RETRIES - 1:
+                    _exponential_backoff(attempt)
+                else:
+                    errors.append(f"OpenRouter: {e}")
+                    break
+    else:
+        errors.append("OpenRouter: OPENROUTER_API_KEY not set")
+
+    # Groq keeps content generation alive when Gemini and OpenRouter are both
+    # spent: it has a separate free-tier quota and is already configured for
+    # the examiner.
+    if os.getenv("GROQ_API_KEY"):
+        logger.warning("OpenRouter unavailable. Falling back to Groq…")
+        for attempt in range(MAX_RETRIES):
+            try:
+                return _call_groq(system_prompt, user_prompt, **kwargs)
+            except Exception as e:
+                err = str(e).lower()
+                if "rate" in err and attempt < MAX_RETRIES - 1:
+                    _exponential_backoff(attempt)
+                else:
+                    errors.append(f"Groq: {e}")
+                    break
+    else:
+        errors.append("Groq: GROQ_API_KEY not set")
+
+    raise RuntimeError(
+        "All LLM providers failed.\n"
+        + "\n".join(f"- {item}" for item in errors)
+        + "\nCheck your API keys and free-tier quotas."
+    )
 
 
 def _lenient_json(text: str) -> Any:

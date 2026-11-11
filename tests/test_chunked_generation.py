@@ -220,7 +220,7 @@ def test_examiner_retry_reuses_untouched_sections(monkeypatch):
     monkeypatch.setattr(G, "call_llm", _paper_fake(calls))
     previous = MockPaperOutput(
         header={"title": "Old paper"}, marks_check={},
-        sections=[_section_obj("A", 5), _section_obj("B", 5)],
+        sections=[_section_obj("Section A", 5), _section_obj("Section B", 5)],
     )
     state = {
         "predictions": [_topic(1)],
@@ -234,9 +234,10 @@ def test_examiner_retry_reuses_untouched_sections(monkeypatch):
     paper = G.generate_mock_paper(state)
     assert len(calls) == 1, "section A is kept, so only B is regenerated"
     assert "B: 5 x 10" in calls[0]
+    assert paper.sections[0].name == "Section A", "kept section is unchanged"
     assert [question.text for question in paper.sections[0].questions] == [
-        f"old A{index}" for index in range(1, 6)
-    ], "kept section is unchanged"
+        f"old Section A{index}" for index in range(1, 6)
+    ]
     assert len(paper.sections[1].questions) == 5
     assert paper.header["title"] == "Old paper", "header survives reuse"
 
@@ -245,7 +246,8 @@ def test_examiner_retry_without_section_names_rebuilds_all(monkeypatch):
     calls = []
     monkeypatch.setattr(G, "call_llm", _paper_fake(calls))
     previous = MockPaperOutput(
-        header={}, marks_check={}, sections=[_section_obj("A", 5), _section_obj("B", 5)],
+        header={}, marks_check={},
+        sections=[_section_obj("Section A", 5), _section_obj("Section B", 5)],
     )
     state = {
         "predictions": [_topic(1)],
@@ -258,6 +260,36 @@ def test_examiner_retry_without_section_names_rebuilds_all(monkeypatch):
     }
     G.generate_mock_paper(state)
     assert len(calls) == 2, "no identifiable section means regenerate everything"
+
+
+def test_section_that_comes_back_empty_is_reported_not_dropped(monkeypatch):
+    def fake(system_prompt=None, user_prompt="", **kwargs):
+        if "write ONLY section 2 of 2: B" in user_prompt:
+            return json.dumps({
+                "header": {},
+                "sections": [{
+                    "name": "Section B", "instructions": "",
+                    "questions": json.loads(_paper_json(5, name="B", marks="10"))["sections"][0]["questions"],
+                }],
+                "marks_check": {},
+            })
+        return json.dumps({"header": {}, "sections": [], "marks_check": {}})
+
+    monkeypatch.setattr(G, "call_llm", fake)
+    warnings = []
+    paper = G.generate_mock_paper(
+        {
+            "predictions": [_topic(1)],
+            "syllabus": _syllabus([1]),
+            "exam_pattern": {
+                "sections": ["A: 5 x 10", "B: 5 x 10"], "num_questions": 20,
+            },
+        },
+        warnings,
+    )
+    assert [section.name for section in paper.sections] == ["Section B"]
+    assert any("A: 5 x 10" in warning and "missing" in warning for warning in warnings)
+    assert any("only 5 of 10 questions" in warning for warning in warnings)
 
 
 def test_single_call_paper_warns_when_it_is_short(monkeypatch):

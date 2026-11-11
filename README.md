@@ -2,7 +2,7 @@
 
 > Evidence-based exam preparation and prediction for **any subject** — school, diploma, undergraduate (engineering, science, commerce, arts, law, medicine…), postgraduate or professional exams.  
 > Theory papers, practicals and vivas: every exam type gets outputs that fit it.  
-> Stack: **LangGraph + Gemini (primary) + Groq (examiner) + local web UI / Streamlit**  
+> Stack: **LangGraph + Gemini (primary) + OpenRouter / Groq (fallbacks) + local web UI / Streamlit**  
 > 100% free tier. No paid APIs. No local LLMs.
 
 ---
@@ -56,7 +56,7 @@ The exported HTML dashboard (`templates/dashboard.html`), the local web UI (`web
 | Service | URL | Notes |
 |---|---|---|
 | **Gemini** | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) | Free tier; Flash models are quota-generous |
-| **Groq** | [console.groq.com/keys](https://console.groq.com/keys) | Free tier; used as examiner LLM |
+| **Groq** | [console.groq.com/keys](https://console.groq.com/keys) | Free tier; examiner LLM and last-resort generation fallback |
 | **OpenRouter** | [openrouter.ai/keys](https://openrouter.ai/keys) | Optional fallback; pick a `:free` model |
 
 ---
@@ -198,7 +198,8 @@ Tests cover:
 
 | Problem | Fix |
 |---|---|
-| `google.api_core.exceptions.ResourceExhausted` | Gemini free quota hit. Wait ~1 min or add `OPENROUTER_API_KEY` as fallback. |
+| `google.api_core.exceptions.ResourceExhausted` | Gemini free quota hit. Calls fall back to OpenRouter, then Groq; add `OPENROUTER_API_KEY` / `GROQ_API_KEY` for a wider fallback net. |
+| `All LLM providers failed` | Gemini, OpenRouter and Groq were all rate-limited or keyless. The error lists each provider's reason; wait for a quota reset or set another key. |
 | `groq.RateLimitError` | Groq free tier limit. Wait or switch `GROQ_MODEL` to another free model. |
 | `404 NOT_FOUND` / `model_not_found` | A model ID was retired. Remove `GEMINI_MODEL` / `GROQ_MODEL` / `OPENROUTER_MODEL` from `.env` to use the current defaults, or set a live ID. |
 | Examiner skipped | `GROQ_API_KEY` is missing or the examiner call failed. The paper is still generated; it just is not cross-checked. |
@@ -231,7 +232,7 @@ StudSem/
 ├── graph.py                # LangGraph workflow definition
 ├── schemas.py              # Pydantic models (shared typed state)
 ├── scoring.py              # Topic scoring engine
-├── llm_client.py           # Unified LLM caller (Gemini → OpenRouter fallback; Groq)
+├── llm_client.py           # Unified LLM caller (Gemini → OpenRouter → Groq fallback)
 ├── prompt_loader.py        # Loads prompts/P*.md files
 ├── nodes/
 │   ├── file_processor.py   # Text extraction + disk cache

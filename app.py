@@ -763,6 +763,9 @@ def _tab_mock_paper(result: dict, meta: dict) -> None:
 
     header = paper.header or {}
     st.caption(f"{header.get('duration', '')} · {header.get('total_marks', '')} marks · {meta.get('exam_type', '')}")
+    for warning in result.get("warnings") or []:
+        if warning.startswith("Mock paper: only"):
+            st.warning(warning)
 
     for section in paper.sections:
         st.markdown(f"#### {section.name}")

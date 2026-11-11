@@ -132,7 +132,9 @@ def _reusable_sections(
         return {}
     reusable = {}
     for section in previous.sections:
-        key = section.name.strip().lower()
+        # Models name sections "Section B", patterns say "B: 7 x 5 marks";
+        # grade both to the same letter before comparing.
+        key = _section_label(section.name).lower()
         if key not in named:
             reusable[key] = copy.deepcopy(section)
     logger.info(
@@ -298,6 +300,8 @@ def _generate_mock_paper_by_section(
             raw = call_llm(system_prompt=system_prompt(), user_prompt=prompt)
             part = parse_json_response(raw, MockPaperOutput, retry_prompt=prompt)
             part = _top_up_section(section, prompt, part)
+            if not any(item.questions for item in part.sections):
+                raise RuntimeError("the model returned no questions for this section")
         except Exception as exc:
             failures.append(f"{section}: {exc}")
             logger.warning("Mock paper section %s failed: %s", section, exc)
