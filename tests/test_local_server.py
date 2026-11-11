@@ -228,9 +228,14 @@ def test_generation_chunks_are_streamed(monkeypatch):
     from nodes import generators
 
     def fake_call(system_prompt=None, user_prompt="", **kwargs):
+        # Return the full section so the count check has no missing questions.
         return json.dumps({
             "header": {},
-            "sections": [{"name": "A", "instructions": "", "questions": []}],
+            "sections": [{"name": "A", "instructions": "", "questions": [{
+                "id": str(index), "section": "A", "text": "Q",
+                "marks": 10, "type": "long", "unit": 1, "topic": "t",
+                "difficulty": "easy", "source_tag": "new",
+            } for index in range(1, 6)]}],
             "marks_check": {},
         })
 

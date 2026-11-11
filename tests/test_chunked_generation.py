@@ -34,17 +34,17 @@ def _syllabus(units):
     )
 
 
-def _paper_json(marks="10"):
+def _paper_json(count=1, marks="10", name="A", first=1):
     return json.dumps({
         "header": {"title": "DBMS Mock"},
         "sections": [{
-            "name": "A",
+            "name": name,
             "instructions": "",
             "questions": [{
-                "id": "1", "section": "A", "text": "Question?", "marks": marks,
-                "type": "long", "unit": 1, "topic": "Topic 1",
+                "id": f"{name}{index}", "section": name, "text": "Question?",
+                "marks": marks, "type": "long", "unit": 1, "topic": "Topic 1",
                 "difficulty": "hard", "source_tag": "new",
-            }],
+            } for index in range(first, first + count)],
         }],
         "marks_check": {},
     })
@@ -70,9 +70,17 @@ def _paper_fake(calls, failing=()):
     def fake(system_prompt=None, user_prompt="", **kwargs):
         calls.append(user_prompt)
         match = re.search(r"write ONLY section \d+ of \d+: (.+)", user_prompt)
-        if match and any(name in match.group(1) for name in failing):
+        if not match:
+            return _paper_json()
+        spec = match.group(1)
+        if any(name in spec for name in failing):
             raise RuntimeError("model returned prose")
-        return _paper_json()
+        count = re.search(r"(\d+)\s*[x×]\s*\d+", spec)
+        name = re.match(r"([A-Za-z]+)", spec)
+        return _paper_json(
+            int(count.group(1)) if count else 1,
+            name=name.group(1) if name else "A",
+        )
     return fake
 
 
@@ -127,16 +135,74 @@ def test_large_paper_is_built_section_by_section(monkeypatch):
         "exam_pattern": {
             "sections": ["A: 5 x 10", "B: 5 x 10"],
             "num_questions": 20,
-            "total_marks": 20,
+            "total_marks": 100,
         },
     }
     paper = G.generate_mock_paper(state)
-    assert len(calls) == 2
+    assert len(calls) == 2, "full sections need no top-up call"
     assert len(paper.sections) == 2
     assert paper.marks_check == {
-        "total": 20, "computed": "per-section", "target": 20, "match": True,
+        "total": 100, "computed": "per-section", "target": 100, "match": True,
     }
-    assert paper.header["total_marks"] == 20
+    assert paper.header["total_marks"] == 100
+
+
+def test_section_shorter_than_planned_is_topped_up(monkeypatch):
+    calls = []
+
+    def fake(system_prompt=None, user_prompt="", **kwargs):
+        calls.append(user_prompt)
+        if not re.search(r"write ONLY section \d+ of \d+: (.+)", user_prompt):
+            return _paper_json()
+        if "Write ONLY the remaining" in user_prompt:
+            assert "you wrote 2 of the 7 questions" in user_prompt
+            assert "remaining 5 questions" in user_prompt
+            return _paper_json(5, name="C")  # restarts numbering on purpose
+        return _paper_json(2, name="C")
+
+    monkeypatch.setattr(G, "call_llm", fake)
+    state = {
+        "predictions": [_topic(1)],
+        "syllabus": _syllabus([1]),
+        "exam_pattern": {
+            "sections": ["A: 1 x 5", "C: 7 x 10 marks"], "num_questions": 20,
+        },
+    }
+    warnings = []
+    paper = G.generate_mock_paper(state, warnings)
+    assert len(calls) == 3, "one call per section plus one top-up"
+    section_c = paper.sections[1]
+    ids = [question.id for question in section_c.questions]
+    assert len(ids) == 7
+    assert len(set(ids)) == 7, "top-up ids are renumbered instead of colliding"
+    assert not warnings
+
+
+def test_short_section_that_stays_short_warns(monkeypatch):
+    calls = []
+
+    def fake(system_prompt=None, user_prompt="", **kwargs):
+        calls.append(user_prompt)
+        match = re.search(r"write ONLY section \d+ of \d+: (.+)", user_prompt)
+        if not match:
+            return _paper_json()
+        if match.group(1).startswith("A"):
+            return _paper_json(1, name="A", marks="5")
+        return _paper_json(2, name="C")
+
+    monkeypatch.setattr(G, "call_llm", fake)
+    state = {
+        "predictions": [_topic(1)],
+        "syllabus": _syllabus([1]),
+        "exam_pattern": {
+            "sections": ["A: 1 x 5", "C: 7 x 10 marks"], "num_questions": 20,
+        },
+    }
+    warnings = []
+    paper = G.generate_mock_paper(state, warnings)
+    assert len(calls) == 3, "one top-up attempt per section"
+    assert len(paper.sections[1].questions) == 4, "topped up, still short"
+    assert any("5 of 8 questions" in note for note in warnings)
 
 
 def test_large_paper_partial_failure_keeps_the_rest(monkeypatch):
@@ -347,3 +413,10 @@ def test_single_section_paper_stays_single_call(monkeypatch):
     G.generate_model_answers({"mock_paper": _mock_paper(sections=("A",))})
     assert len(calls) == 1
     assert "Answer ONLY" not in calls[0]
+
+
+def test_expected_section_questions_parses_patterns():
+    assert G._expected_section_questions("A: 7 x 2 marks") == 7
+    assert G._expected_section_questions("Section C: 7 questions") == 7
+    assert G._expected_section_questions("B: 6 x 10 (answer any 4)") == 6
+    assert G._expected_section_questions("A: 20 marks") == 0

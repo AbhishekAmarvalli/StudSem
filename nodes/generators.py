@@ -80,6 +80,88 @@ def _pattern_sections(pattern: Dict[str, Any]) -> List[str]:
     return [str(item).strip() for item in raw if str(item).strip()]
 
 
+# "A: 7 x 2 marks" and "Section C: 7 questions" both ask for seven questions.
+_SECTION_COUNT_PATTERNS = (
+    re.compile(r"(\d+)\s*[x×*]\s*\d+\b", re.I),
+    re.compile(r"(\d+)\s*questions?\b", re.I),
+)
+
+
+def _expected_section_questions(section: str) -> int:
+    for pattern in _SECTION_COUNT_PATTERNS:
+        for match in pattern.finditer(str(section)):
+            try:
+                count = int(match.group(1))
+            except (TypeError, ValueError):
+                continue
+            if count > 0:
+                return count
+    return 0
+
+
+def _next_question_id(current: str, used: set) -> str:
+    match = re.match(r"^(.*?)(\d+)$", current or "")
+    prefix = match.group(1) if match else (current or "Q")
+    numbers = [
+        int(found.group(1))
+        for existing in used
+        if (found := re.match(rf"^{re.escape(prefix)}(\d+)$", str(existing)))
+    ]
+    return f"{prefix}{max(numbers, default=0) + 1}"
+
+
+def _merge_section_questions(
+    sections: List[MockSection], extra: List[MockSection]
+) -> None:
+    by_name = {section.name.strip().lower(): section for section in sections}
+    for incoming in extra:
+        target = by_name.get((incoming.name or "").strip().lower())
+        if target is None and len(sections) == 1:
+            target = sections[0]
+        if target is None:
+            sections.append(incoming)
+            by_name[(incoming.name or "").strip().lower()] = incoming
+            continue
+        used = {question.id for question in target.questions}
+        for question in incoming.questions:
+            if question.id in used:
+                question.id = _next_question_id(question.id, used)
+            used.add(question.id)
+            target.questions.append(question)
+
+
+def _top_up_section(
+    section: str, prompt: str, part: MockPaperOutput
+) -> MockPaperOutput:
+    """Ask for the questions a section skipped instead of trusting the count."""
+    expected = _expected_section_questions(section)
+    written = sum(len(item.questions) for item in part.sections)
+    missing = expected - written
+    if missing <= 0:
+        return part
+    ids = ", ".join(
+        question.id for item in part.sections for question in item.questions
+    ) or "none"
+    _report(
+        f"Finishing mock paper section: {written}/{expected} written, adding {missing}"
+    )
+    continuation = (
+        prompt
+        + f"\n\nContinue the same section: you wrote {written} of the {expected} questions"
+        + f" required by '{section}' (ids: {ids})."
+        + f"\nWrite ONLY the remaining {missing} questions for that section, continuing the numbering."
+        + "\nReturn the usual JSON shape with just those new questions in one section entry."
+    )
+    try:
+        raw = call_llm(system_prompt=system_prompt(), user_prompt=continuation)
+        extra = parse_json_response(raw, MockPaperOutput, retry_prompt=continuation)
+    except Exception as exc:
+        logger.warning("Mock paper top-up for %s failed: %s", section, exc)
+        return part
+    _merge_section_questions(part.sections, extra.sections)
+    return part
+
+
 def _syllabus_json(syllabus: Any, units: Optional[set] = None) -> str:
     if syllabus is None or not hasattr(syllabus, "json"):
         return "{}"
@@ -149,6 +231,7 @@ def _generate_mock_paper_by_section(
         try:
             raw = call_llm(system_prompt=system_prompt(), user_prompt=prompt)
             part = parse_json_response(raw, MockPaperOutput, retry_prompt=prompt)
+            part = _top_up_section(section, prompt, part)
         except Exception as exc:
             failures.append(f"{section}: {exc}")
             logger.warning("Mock paper section %s failed: %s", section, exc)
@@ -162,6 +245,13 @@ def _generate_mock_paper_by_section(
     if failures:
         notes.append(
             "Mock paper: " + "; ".join(failures) + " — those section(s) are missing."
+        )
+
+    expected_total = sum(_expected_section_questions(item) for item in sections)
+    actual_total = sum(len(item.questions) for item in merged)
+    if expected_total and actual_total < expected_total:
+        notes.append(
+            f"Mock paper: only {actual_total} of {expected_total} questions were generated."
         )
 
     pattern = state.get("exam_pattern", {}) or {}
