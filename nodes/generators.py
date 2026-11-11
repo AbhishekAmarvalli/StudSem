@@ -296,16 +296,30 @@ def question_bank_node(state: dict) -> dict:
 
 # ── Model Answers ──────────────────────────────────────────────────────────────
 
-# Answers are the longest artifact per question, so a section is split again:
-# five questions per reply keeps every response well inside the output limit.
+# Answers are the longest artifact per question, so a section is split again.
+# Both caps apply: five questions, and roughly 25 marks of answers per reply, so a
+# section of 10-mark questions is split sooner than one of 2-mark questions.
 ANSWERS_QUESTIONS_PER_CALL = 5
+ANSWERS_MARKS_PER_CALL = 25
 
 
 def _answer_batches(questions: List[Any]) -> List[List[Any]]:
-    return [
-        questions[i:i + ANSWERS_QUESTIONS_PER_CALL]
-        for i in range(0, len(questions), ANSWERS_QUESTIONS_PER_CALL)
-    ]
+    batches: List[List[Any]] = []
+    current: List[Any] = []
+    marks = 0
+    for question in questions:
+        weight = max(1, int(getattr(question, "marks", 0) or 0))
+        if current and (
+            len(current) >= ANSWERS_QUESTIONS_PER_CALL
+            or marks + weight > ANSWERS_MARKS_PER_CALL
+        ):
+            batches.append(current)
+            current, marks = [], 0
+        current.append(question)
+        marks += weight
+    if current:
+        batches.append(current)
+    return batches
 
 
 def _answers_prompt(
@@ -383,7 +397,9 @@ def generate_model_answers(
             failures.append(f"{label}: {exc}")
             continue
         for answer in part.answers:
-            key = (answer.question_id, answer.question_text)
+            # Real replies sometimes omit ids/text, so include the body in the key
+            # to avoid collapsing distinct answers into one.
+            key = (answer.question_id, answer.question_text, answer.answer[:80])
             if key in seen:
                 continue
             seen.add(key)

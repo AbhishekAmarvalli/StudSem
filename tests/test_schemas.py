@@ -129,6 +129,29 @@ def test_model_answer_marks_and_ids_coerce():
     assert question.unit == 1
 
 
+def test_model_answer_accepts_real_world_shapes():
+    from schemas import ModelAnswersOutput
+    out = ModelAnswersOutput(**{"answers": [
+        {
+            "id": "A6",
+            "question_text": "Explain atomicity.",
+            "answer_content": "Atomicity is all-or-nothing.",
+            "marking_scheme": [
+                {"point": "Definition", "marks": 2},
+                "Example",
+            ],
+        },
+        {"id": "B1", "answer": "A shorter reply with no marks or question text."},
+    ]})
+    first, second = out.answers
+    assert first.question_id == "A6"
+    assert first.answer.startswith("Atomicity")
+    assert first.marks == 0
+    assert first.marking_scheme == ["Definition (2 marks)", "Example"]
+    assert second.question_text == ""
+    assert second.marking_scheme == []
+
+
 def test_unparseable_numbers_still_fail():
     from schemas import PastQuestion
     with pytest.raises(Exception):

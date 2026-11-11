@@ -152,13 +152,21 @@ def _run_workflow_thread(run_id: str, state: Dict[str, Any]) -> None:
             final_state.get("outputs_wanted", []),
             exam_type=final_state.get("exam_type", ""),
         )
-        for chunk in graph.stream(final_state, {"recursion_limit": 50}):
-            for node_name, node_output in chunk.items():
-                if isinstance(node_output, dict):
-                    final_state.update(node_output)
-                    for warning in node_output.get("warnings") or []:
-                        events.put({"type": "warning", "message": str(warning)})
-                events.put({"type": "stage", "node": node_name, "status": "done"})
+        from nodes import generators as generation
+
+        progress_token = generation.set_progress_reporter(
+            lambda message: events.put({"type": "chunk", "message": message})
+        )
+        try:
+            for chunk in graph.stream(final_state, {"recursion_limit": 50}):
+                for node_name, node_output in chunk.items():
+                    if isinstance(node_output, dict):
+                        final_state.update(node_output)
+                        for warning in node_output.get("warnings") or []:
+                            events.put({"type": "warning", "message": str(warning)})
+                    events.put({"type": "stage", "node": node_name, "status": "done"})
+        finally:
+            generation.reset_progress_reporter(progress_token)
 
         RUNS[run_id]["state"] = final_state
         events.put({"type": "done", "node_count": len(final_state.get("progress") or {})})

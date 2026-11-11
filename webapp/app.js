@@ -311,6 +311,13 @@
       .join("");
   }
 
+  const PROGRESS_IDLE = "Each stage is one AI pass. Keep this tab open.";
+
+  function setProgressText(text, busy = false) {
+    $("#progress-text").textContent = text;
+    $("#progress-spinner").hidden = !busy;
+  }
+
   function markStage(node, status) {
     const item = $(`[data-stage="${node}"]`);
     if (!item) return;
@@ -318,6 +325,7 @@
     if (status === "done") {
       item.classList.add("done");
       item.querySelector(".box").textContent = "✓";
+      setProgressText(PROGRESS_IDLE);
       const next = $(".stage:not(.done)");
       if (next) next.classList.add("running");
     } else {
@@ -341,7 +349,7 @@
     $("#run-btn").disabled = false;
     $("#run-btn").textContent = "Try again →";
     $("#progress-title").textContent = "That run stopped";
-    $("#progress-sub").textContent = "Fix the issue below and run again — nothing was saved.";
+    setProgressText("Fix the issue below and run again — nothing was saved.");
     const div = document.createElement("div");
     div.className = "warn";
     div.style.background = "var(--pink)";
@@ -384,7 +392,7 @@
     const stages = $("#progress");
     stages.hidden = false;
     $("#progress-title").textContent = "Working through the pipeline";
-    $("#progress-sub").textContent = "Each stage is one AI pass. Keep this tab open.";
+    setProgressText(PROGRESS_IDLE);
     $("#progress-count").textContent = `0/${nodes.length} stages`;
     stages.scrollIntoView({ behavior: "smooth", block: "start" });
     markStage(nodes[0], "start");
@@ -431,6 +439,8 @@
 
       if (payload.type === "stage") {
         markStage(payload.node, payload.status === "done" ? "done" : "start");
+      } else if (payload.type === "chunk") {
+        setProgressText(payload.message, true);
       } else if (payload.type === "warning") {
         addWarning(payload.message);
       } else if (payload.type === "error") {
@@ -473,7 +483,7 @@
     $("#run-btn").disabled = false;
     $("#run-btn").textContent = "Run again →";
     $("#progress-title").textContent = "Pipeline finished";
-    $("#progress-sub").textContent = "Scroll down — your prep is below.";
+    setProgressText("Scroll down — your prep is below.");
 
     renderResult(state.result);
     $("#results").hidden = false;

@@ -255,6 +255,14 @@ div[data-testid="stAlertContentInfo"] { background: #d9f6ff !important; }
   .block-container { padding: 1rem .8rem 3rem !important; }
   [data-testid="stMetricValue"] { font-size: 1.3rem !important; }
 }
+/* Generation chunk in flight: a small spinner beside the current chunk label. */
+.ss-chunk-spin {
+  display: inline-block; width: .72rem; height: .72rem; margin-right: .4rem;
+  border: 2px solid currentColor; border-right-color: transparent;
+  border-radius: 50%; animation: ss-chunk-spin .7s linear infinite;
+  vertical-align: -0.06rem;
+}
+@keyframes ss-chunk-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }

@@ -585,7 +585,10 @@ def _execute(state: dict) -> None:
         # Long generations run in chunks; show which one is in flight so a slow
         # node doesn't look frozen between step ticks.
         token = generation.set_progress_reporter(
-            lambda message: chunk_line.caption(f"⏳ {message}")
+            lambda message: chunk_line.markdown(
+                f'<span class="ss-chunk-spin"></span>{ui.escape(message)}',
+                unsafe_allow_html=True,
+            )
         )
         try:
             for chunk in graph.stream(final, {"recursion_limit": 50}):

@@ -293,6 +293,35 @@ def test_large_section_is_split_into_question_batches(monkeypatch):
     ]
 
 
+def test_long_mark_answers_split_before_five_questions(monkeypatch):
+    calls = []
+
+    def fake(system_prompt=None, user_prompt="", **kwargs):
+        calls.append(user_prompt)
+        ids = re.findall(r'"id": "([^"]+)"', user_prompt)
+        return json.dumps({"answers": [{
+            "question_id": qid, "question_text": f"Q{qid}", "marks": 10,
+            "answer": "A", "marking_scheme": [],
+        } for qid in ids]})
+
+    monkeypatch.setattr(G, "call_llm", fake)
+    questions = [
+        MockQuestion(
+            id=f"A{index}", section="A", text=f"Question {index}", marks=10,
+            type="long", unit=1, topic="t", difficulty="hard", source_tag="new",
+        )
+        for index in range(1, 7)
+    ]
+    paper = MockPaperOutput(header={}, marks_check={}, sections=[
+        MockSection(name="A", instructions="", questions=questions)
+    ])
+    result = G.generate_model_answers({"mock_paper": paper})
+    assert len(calls) == 3, "two 10-mark answers per call stay inside 25 marks"
+    assert [answer.question_id for answer in result.answers] == [
+        f"A{index}" for index in range(1, 7)
+    ]
+
+
 def test_chunk_progress_is_reported(monkeypatch):
     messages = []
     token = G.set_progress_reporter(messages.append)

@@ -221,6 +221,42 @@ def test_full_run_events_result_and_exports(monkeypatch):
     assert client.get(f"/api/run/{run_id}/download/nope").status_code == 404
 
 
+def test_generation_chunks_are_streamed(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    _stub_graph(monkeypatch)
+
+    from nodes import generators
+
+    def fake_call(system_prompt=None, user_prompt="", **kwargs):
+        return json.dumps({
+            "header": {},
+            "sections": [{"name": "A", "instructions": "", "questions": []}],
+            "marks_check": {},
+        })
+
+    def paper_node(state):
+        return {"mock_paper": generators.generate_mock_paper({
+            **state,
+            "predictions": [],
+            "exam_pattern": {"sections": ["A: 5 x 10", "B: 5 x 10"], "num_questions": 20},
+        })}
+
+    monkeypatch.setattr(generators, "call_llm", fake_call)
+    monkeypatch.setattr(graph, "mock_paper_node", paper_node)
+
+    client = TestClient(server.app)
+    started = client.post("/api/run", data={"config": json.dumps(_config())})
+    run_id = started.json()["run_id"]
+    events = _events(client.get(f"/api/run/{run_id}/events").text)
+
+    chunks = [event["message"] for event in events if event["type"] == "chunk"]
+    assert chunks == [
+        "Writing mock paper section 1/2: A: 5 x 10",
+        "Writing mock paper section 2/2: B: 5 x 10",
+    ]
+    assert "done" in [event["type"] for event in events]
+
+
 def test_grade_requires_both_fields(monkeypatch):
     client = TestClient(server.app)
     response = client.post("/api/grade", json={"question": "", "answer": "something"})

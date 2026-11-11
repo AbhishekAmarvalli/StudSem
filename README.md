@@ -208,6 +208,8 @@ Tests cover:
 | Streamlit app crashes on deploy | Check **Manage app → Logs**. Usually a missing secret or import error. |
 | `RAM` / `MemoryError` | The app processes files one page at a time. If still hitting limits, reduce file size or split large PDFs. |
 | Marks don't add up in mock paper | Examiner will catch this and trigger a regeneration (max 2 retries). Check warnings section. |
+| `… those sections/units are missing` warning | One chunk of a long generation failed or hit the output limit. The rest of the artifact is intact; re-run to fill the gap, or request fewer outputs at once. |
+| Progress stuck on `⏳ Writing …` | That chunk is still generating — a batch of 10-mark answers can take ~30 s. If it never advances, check the terminal for a rate-limit error and retry. |
 
 ---
 

@@ -64,6 +64,28 @@ def _to_text(value: Any) -> str:
     return "" if value is None else str(value)
 
 
+def _to_marking_scheme(value: Any) -> List[str]:
+    """Accept bullet strings or {"point": …, "marks": n} objects from the model."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if not isinstance(value, list):
+        return [str(value)]
+    points = []
+    for item in value:
+        if isinstance(item, dict):
+            text = item.get("point") or item.get("criterion") or item.get("text") or ""
+            marks = item.get("marks")
+            if marks in (None, ""):
+                points.append(str(text))
+            else:
+                points.append(f"{text} ({marks} mark{'s' if str(marks) != '1' else ''})")
+        else:
+            points.append(str(item))
+    return points
+
+
 LenientInt = Annotated[int, BeforeValidator(_to_int)]
 LenientFloat = Annotated[float, BeforeValidator(_to_float)]
 LenientRatio = Annotated[float, BeforeValidator(_to_ratio)]
@@ -232,12 +254,17 @@ class QuestionBankOutput(BaseModel):
 # ── Model Answers ──────────────────────────────────────────────────────────────
 
 class ModelAnswer(BaseModel):
-    # Models often shorten these to "id"/"question"/"text" — accept both.
-    question_id: LenientStr = Field(validation_alias=AliasChoices("question_id", "id"))
-    question_text: str = Field(validation_alias=AliasChoices("question_text", "question", "text"))
-    marks: LenientInt
-    answer: str
-    marking_scheme: List[str] = []
+    # Models shorten or rename these fields often: "id", "answer_content",
+    # "model_answer", and object-style marking points all appear in real replies.
+    question_id: LenientStr = Field(default="", validation_alias=AliasChoices("question_id", "id"))
+    question_text: LenientStr = Field(
+        default="", validation_alias=AliasChoices("question_text", "question")
+    )
+    marks: LenientInt = 0
+    answer: LenientStr = Field(
+        validation_alias=AliasChoices("answer", "answer_content", "model_answer")
+    )
+    marking_scheme: Annotated[List[str], BeforeValidator(_to_marking_scheme)] = []
 
 
 class ModelAnswersOutput(BaseModel):

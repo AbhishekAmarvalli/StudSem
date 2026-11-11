@@ -311,6 +311,16 @@ main {
 
 .hint { font-size: .74rem; color: var(--muted); }
 
+/* Shown while a generation chunk is in flight, so the progress line reads as
+   active rather than a stale label. */
+.chunk-spinner {
+  display: inline-block; width: .65rem; height: .65rem; margin-right: .4rem;
+  border: 2px solid currentColor; border-right-color: transparent;
+  border-radius: 50%; animation: chunk-spin .7s linear infinite;
+  vertical-align: -0.05rem;
+}
+@keyframes chunk-spin { to { transform: rotate(360deg); } }
+
 input[type="text"],
 input[type="number"],
 input[type="date"],
