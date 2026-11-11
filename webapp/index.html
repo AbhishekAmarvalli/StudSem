@@ -50,6 +50,8 @@
 
 <main>
 
+  <h1 class="sr-only">StudSem exam intelligence workflow</h1>
+
   <!-- ═══ BUILD ═══════════════════════════════════════════════════════════ -->
   <section id="build-view" class="view" aria-label="Build my prep">
 
@@ -270,7 +272,7 @@
       </div>
 
       <!-- Aside -->
-      <aside class="aside">
+      <div class="aside">
         <div class="summary">
           <h2>Ready to run</h2>
           <dl>
@@ -297,7 +299,7 @@
           <p style="font-size:.82rem;">Files are read once, then the pipeline sorts them, reads the syllabus, mines past papers, applies teacher hints, scores every topic, and only then writes your outputs.</p>
           <p class="aside-note" style="font-size:.72rem;">Everything runs on your machine. Only the AI calls leave it.</p>
         </div>
-      </aside>
+      </div>
     </div>
 
     <!-- Progress -->
@@ -378,12 +380,12 @@
         <button class="btn primary" id="grade-btn" type="button">Grade it →</button>
       </div>
 
-      <aside class="aside">
+      <div class="aside">
         <div class="summary plain">
           <h2>How grading works</h2>
           <p style="font-size:.82rem;">A university-style examiner scores your answer against the rubric: credit for correct points phrased differently, penalties for factual errors, no reward for length.</p>
         </div>
-      </aside>
+      </div>
     </div>
 
     <div id="grade-result" style="margin-top:1.6rem;" hidden></div>

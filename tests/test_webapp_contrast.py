@@ -64,6 +64,16 @@ def test_dark_theme_text_is_readable():
     }, "dark")
 
 
+def test_native_controls_follow_the_page_theme():
+    root = _block(":root")
+    dark = _block('html[data-theme="dark"]')
+    assert "color-scheme: light" in root
+    assert "color-scheme: dark" in dark
+    for selector in (".viewtab", ".tab", ".icon-btn"):
+        block = _block(selector)
+        assert "color:" in block, f"{selector} must set its own text colour"
+
+
 def test_engines_have_a_colour_class_per_state():
     for state in ("ready", "preferred", "paused", "off"):
         assert re.search(rf"\.engine\.{state}\s*\{{", CSS), f"missing .engine.{state}"

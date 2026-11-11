@@ -4,6 +4,7 @@
    ───────────────────────────────────────────────────────────────────────────── */
 
 :root {
+  color-scheme: light;
   --ink: #0a0a0a;
   --paper: #fdf8ec;
   --white: #ffffff;
@@ -231,6 +232,7 @@ code, .mono { font-family: var(--font-mono); }
   padding: .5rem .9rem;
   border: var(--line-thin);
   background: var(--white);
+  color: var(--ink);
   font-family: var(--font-mono);
   font-size: .68rem;
   font-weight: 700;
@@ -450,6 +452,7 @@ select {
   width: 36px; height: 36px;
   border: var(--line-thin);
   background: var(--white);
+  color: var(--ink);
   font-size: 1rem;
   line-height: 1;
   cursor: pointer;
@@ -695,6 +698,7 @@ details.advanced h3:first-child { margin-top: 0; }
   padding: .5rem .8rem;
   border: var(--line-thin);
   background: var(--white);
+  color: var(--ink);
   font-family: var(--font-mono);
   font-size: .68rem;
   font-weight: 700;
@@ -874,6 +878,7 @@ footer .foot-brand { font-family: var(--font-head); font-size: 1.1rem; }
    ─────────────────────────────────────────────────────────────────────────── */
 
 html[data-theme="dark"] {
+  color-scheme: dark;
   --ink: #f4efe2;
   --paper: #121212;
   --white: #1b1b1b;
@@ -942,9 +947,6 @@ html[data-theme="dark"] .result-head,
 html[data-theme="dark"] .marks-big,
 html[data-theme="dark"] .group-title .tag { color: #0a0a0a; }
 
-/* Panels that intentionally stay on the plain card colour. */
-html[data-theme="dark"] .summary.plain { color: var(--ink); }
-html[data-theme="dark"] .summary.plain dt { color: var(--muted); }
 html[data-theme="dark"] .result-meta span { color: var(--ink); }
 
 /* The idle pill sits on --paper, which is dark in this theme. */
