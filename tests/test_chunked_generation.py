@@ -292,6 +292,66 @@ def test_section_that_comes_back_empty_is_reported_not_dropped(monkeypatch):
     assert any("only 5 of 10 questions" in warning for warning in warnings)
 
 
+def test_examiner_loop_reuses_kept_sections(monkeypatch):
+    """Drive the real examiner retry loop: one rejection, one section rebuilt."""
+    import nodes.examiner as E
+
+    generator_calls = []
+    monkeypatch.setattr(G, "call_llm", _paper_fake(generator_calls))
+    previous = MockPaperOutput(
+        header={}, marks_check={},
+        sections=[
+            _section_obj("Section A", 5), _section_obj("Section B", 5),
+            _section_obj("Section C", 5),
+        ],
+    )
+    verdicts = [
+        {"verdict": "fail", "issues": [{
+            "check": "pattern", "item_id": "B-3",
+            "problem": "Section B is incomplete: only 3 of 5 questions.",
+            "fix": "Write all 5 questions for Section B.",
+        }]},
+        {"verdict": "pass", "issues": []},
+    ]
+    examiner_calls = []
+
+    def fake_examiner_call(*args, **kwargs):
+        assert kwargs.get("use_groq"), "only the examiner should hit this stub"
+        examiner_calls.append(1)
+        return json.dumps(verdicts[min(len(examiner_calls) - 1, 1)])
+
+    monkeypatch.setattr(E, "call_llm", fake_examiner_call)
+    state = {
+        "predictions": [_topic(1)],
+        "syllabus": _syllabus([1]),
+        "mock_paper": previous,
+        "warnings": [],
+        "exam_pattern": {
+            "sections": ["A: 5 x 10", "B: 5 x 10", "C: 5 x 10"], "num_questions": 15,
+        },
+    }
+    update = E.examiner_node(state)
+
+    assert len(examiner_calls) == 2, "rejection then pass"
+    assert len(generator_calls) == 1, "only the named section is rewritten"
+    assert "write ONLY section 2 of 3: B: 5 x 10" in generator_calls[0]
+
+    final = update["mock_paper"]
+    assert [section.name for section in final.sections] == [
+        "Section A", "Section B", "Section C"
+    ]
+    assert [question.id for question in final.sections[0].questions] == [
+        f"Section A{index}" for index in range(1, 6)
+    ], "section A is reused"
+    assert [question.id for question in final.sections[1].questions] == [
+        f"B{index}" for index in range(1, 6)
+    ], "section B is regenerated"
+    assert [question.id for question in final.sections[2].questions] == [
+        f"Section C{index}" for index in range(1, 6)
+    ], "section C is reused"
+    assert "warnings" not in update, "a passing re-check leaves no warnings"
+
+
 def test_single_call_paper_warns_when_it_is_short(monkeypatch):
     def fake(system_prompt=None, user_prompt="", **kwargs):
         return json.dumps({

@@ -65,11 +65,28 @@
 
   /* ── API key status ─────────────────────────────────────────────────── */
 
+  const PROVIDER_STATES = { ready: "ready", paused: "paused", preferred: "in use", off: "no key" };
+
+  function renderProviders(providers) {
+    const strip = $("#provider-health");
+    if (!strip || !providers || !providers.length) return;
+    strip.innerHTML = "Engines · " + providers
+      .map((provider) => {
+        const label = PROVIDER_STATES[provider.state] || provider.state;
+        const wait = provider.state === "paused" && provider.paused_for
+          ? ` ${Math.ceil(provider.paused_for / 60)}m`
+          : "";
+        return `<span class="engine ${esc(provider.state)}">${esc(provider.name)} ${esc(label)}${wait}</span>`;
+      })
+      .join(" ");
+  }
+
   async function loadHealth() {
     const pill = $("#api-pill");
     try {
       const res = await fetch("/api/health");
       const data = await res.json();
+      renderProviders(data.providers);
       if (data.gemini) {
         pill.className = "pill ok";
         pill.innerHTML = `<span class="dot" aria-hidden="true"></span> Gemini key ready · ${esc(data.model)}`;
@@ -441,6 +458,7 @@
         markStage(payload.node, payload.status === "done" ? "done" : "start");
       } else if (payload.type === "chunk") {
         setProgressText(payload.message, true);
+        renderProviders(payload.providers);
       } else if (payload.type === "warning") {
         addWarning(payload.message);
       } else if (payload.type === "error") {

@@ -552,6 +552,23 @@ details.advanced h3:first-child { margin-top: 0; }
   margin-top: .2rem;
 }
 
+/* Live provider health: which engine is ready, in use, or sitting out. */
+.provider-health {
+  font-family: var(--font-mono);
+  font-size: .64rem;
+  line-height: 1.7;
+  margin-top: .2rem;
+}
+.engine {
+  display: inline-block;
+  border: var(--line-thin);
+  padding: 0 .35rem;
+  margin: .1rem .15rem 0 0;
+}
+.engine.paused { background: var(--yellow); }
+.engine.preferred { background: var(--lime, #c6ff4d); }
+.engine.off { color: var(--muted); }
+
 /* ── Progress ────────────────────────────────────────────────────────────── */
 
 #progress {

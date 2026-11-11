@@ -202,6 +202,7 @@ Tests cover:
 | `All LLM providers failed` | Gemini, OpenRouter and Groq were all rate-limited or keyless. The error lists each provider's reason; wait for a quota reset or set another key. |
 | Repeated 429s slow every chunk | A rate-limited provider is skipped for `LLM_PROVIDER_COOLDOWN` seconds (default 600) after it exhausts its retries, so later calls go straight to the next provider. Lower the value to retry sooner. |
 | Wondering which model answered | A provider that just succeeded stays first for `LLM_PROVIDER_STICKY_SECONDS` (default 900) instead of re-probing the preferred one each chunk; progress lines end with `via Gemini/OpenRouter/Groq`. |
+| Provider health | Shown as `Engines` in the Streamlit sidebar and the local UI aside (`ready`, `in use`, `paused 3m`, `no key`). Cooldowns and stickiness persist in `data/provider_state.json` across restarts and Streamlit reruns; override the path with `LLM_PROVIDER_STATE_FILE`. |
 | `groq.RateLimitError` | Groq free tier limit. Wait or switch `GROQ_MODEL` to another free model. |
 | `404 NOT_FOUND` / `model_not_found` | A model ID was retired. Remove `GEMINI_MODEL` / `GROQ_MODEL` / `OPENROUTER_MODEL` from `.env` to use the current defaults, or set a live ID. |
 | Examiner skipped | `GROQ_API_KEY` is missing or the examiner call failed. The paper is still generated; it just is not cross-checked. |

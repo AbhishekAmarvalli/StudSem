@@ -12,7 +12,8 @@ import time
 import json
 import logging
 from contextvars import ContextVar
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from google import genai as genai_new
 from google.genai import types as genai_types
@@ -51,6 +52,7 @@ _provider_down_until: Dict[str, float] = {}
 # preferred provider again on every chunk of the run.
 PROVIDER_STICKY_SECONDS = int(os.getenv("LLM_PROVIDER_STICKY_SECONDS", "900"))
 _provider_last_success: Dict[str, float] = {}
+_state_loaded = False
 
 PROVIDER_ORDER = ("gemini", "openrouter", "groq")
 PROVIDER_LABELS = {"gemini": "Gemini", "openrouter": "OpenRouter", "groq": "Groq"}
@@ -69,9 +71,12 @@ def last_provider() -> str:
 
 
 def reset_provider_state() -> None:
+    global _state_loaded
     _provider_down_until.clear()
     _provider_last_success.clear()
     _last_provider.set("")
+    _state_loaded = False
+    _save_provider_state()
 
 
 def _provider_available(name: str) -> bool:
@@ -94,6 +99,80 @@ def _ordered_providers() -> list:
 def _mark_provider_success(name: str) -> None:
     _provider_last_success[name] = time.time()
     _last_provider.set(PROVIDER_LABELS[name])
+    _save_provider_state()
+
+
+def _provider_state_file() -> Path:
+    override = os.getenv("LLM_PROVIDER_STATE_FILE")
+    if override:
+        return Path(override)
+    return Path(__file__).resolve().parent / "data" / "provider_state.json"
+
+
+def _load_provider_state() -> None:
+    """Restore cooldowns/stickiness after a restart or a Streamlit rerun."""
+    global _state_loaded
+    try:
+        payload = json.loads(_provider_state_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    now = time.time()
+    for name, until in (payload.get("down") or {}).items():
+        if isinstance(until, (int, float)) and until > now:
+            _provider_down_until[name] = float(until)
+    for name, last in (payload.get("success") or {}).items():
+        if isinstance(last, (int, float)) and now - last < PROVIDER_STICKY_SECONDS:
+            _provider_last_success[name] = float(last)
+    _state_loaded = True
+
+
+def _save_provider_state() -> None:
+    try:
+        path = _provider_state_file()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps({"down": _provider_down_until, "success": _provider_last_success}),
+            encoding="utf-8",
+        )
+        tmp.replace(path)
+    except OSError as exc:  # read-only deploy or locked file: status just resets
+        logger.debug("Could not persist provider state: %s", exc)
+
+
+def _ensure_provider_state() -> None:
+    global _state_loaded
+    if not _state_loaded:
+        _load_provider_state()
+        _state_loaded = True
+
+
+def provider_status() -> List[Dict[str, Any]]:
+    """Current health of each provider, for the UIs."""
+    _ensure_provider_state()
+    now = time.time()
+    statuses = []
+    for name in PROVIDER_ORDER:
+        label = PROVIDER_LABELS[name]
+        configured = bool(os.getenv(PROVIDER_API_KEYS[name]))
+        paused_for = max(0, int(_provider_down_until.get(name, 0.0) - now))
+        last = _provider_last_success.get(name, 0.0)
+        preferred = bool(last and now - last < PROVIDER_STICKY_SECONDS)
+        if not configured:
+            state = "off"
+        elif paused_for:
+            state = "paused"
+        elif preferred:
+            state = "preferred"
+        else:
+            state = "ready"
+        statuses.append({
+            "name": label,
+            "state": state,
+            "configured": configured,
+            "paused_for": paused_for,
+        })
+    return statuses
 
 
 def _is_transient(error: str) -> bool:
@@ -110,6 +189,7 @@ def _mark_provider_down(name: str, error: Exception) -> None:
         "%s paused for %ss after rate limiting: %s",
         name, PROVIDER_COOLDOWN_SECONDS, error,
     )
+    _save_provider_state()
 
 
 def _mark_provider_up(name: str) -> None:
@@ -271,6 +351,7 @@ def call_llm(
     Call LLM with automatic retry + fallback.
     use_groq=True forces the Groq examiner path.
     """
+    _ensure_provider_state()
     if use_groq:
         for attempt in range(MAX_RETRIES):
             try:

@@ -1,13 +1,18 @@
 """Fallback chain: Gemini -> OpenRouter -> Groq."""
+import time
+
 import pytest
 
 import llm_client as L
 
 
 @pytest.fixture(autouse=True)
-def _clean_cooldowns(monkeypatch):
+def _clean_cooldowns(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
     monkeypatch.setattr(L, "_provider_down_until", {})
     monkeypatch.setattr(L, "_provider_last_success", {})
+    monkeypatch.setattr(L, "_state_loaded", False)
+    monkeypatch.setattr(L, "_provider_state_file", lambda: tmp_path / "provider_state.json")
 
 
 def _rate_limited(*args, **kwargs):
@@ -89,6 +94,30 @@ def test_successful_provider_is_preferred_on_the_next_call(monkeypatch):
     assert L.call_llm("system", "user") == "from groq"
     assert len(gemini_calls) == L.MAX_RETRIES
     assert len(openrouter_calls) == L.MAX_RETRIES
+
+
+def test_provider_state_survives_a_reload(monkeypatch):
+    L._provider_down_until["gemini"] = time.time() + 120
+    L._provider_last_success["groq"] = time.time()
+    L._save_provider_state()
+
+    L._provider_down_until.clear()
+    L._provider_last_success.clear()
+    L._state_loaded = False
+    L._ensure_provider_state()
+
+    assert L._provider_down_until["gemini"] > time.time()
+    assert "groq" in L._provider_last_success
+
+
+def test_provider_status_reports_paused_and_preferred(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    monkeypatch.setenv("GROQ_API_KEY", "test")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    L._provider_down_until["gemini"] = time.time() + 120
+    L._provider_last_success["groq"] = time.time()
+    statuses = {item["name"]: item["state"] for item in L.provider_status()}
+    assert statuses == {"Gemini": "paused", "OpenRouter": "off", "Groq": "preferred"}
 
 
 def test_all_providers_failing_names_each_one(monkeypatch):

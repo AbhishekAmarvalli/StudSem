@@ -141,6 +141,16 @@ def _sidebar() -> None:
             unsafe_allow_html=True,
         )
         st.caption(f"Model: {os.getenv('GEMINI_MODEL', 'gemini-3.8-flash')}")
+        from llm_client import provider_status
+
+        labels = {"ready": "ready", "paused": "paused", "preferred": "in use", "off": "no key"}
+        engines = []
+        for provider in provider_status():
+            state = labels.get(provider["state"], provider["state"])
+            if provider["state"] == "paused" and provider["paused_for"]:
+                state += f" {max(1, round(provider['paused_for'] / 60))}m"
+            engines.append(f"{provider['name']} {state}")
+        st.caption("Engines: " + " · ".join(engines))
 
         with st.expander("API keys", expanded=not has_gemini):
             gemini_key = st.text_input(

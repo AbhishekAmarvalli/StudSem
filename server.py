@@ -152,10 +152,15 @@ def _run_workflow_thread(run_id: str, state: Dict[str, Any]) -> None:
             final_state.get("outputs_wanted", []),
             exam_type=final_state.get("exam_type", ""),
         )
+        from llm_client import provider_status
         from nodes import generators as generation
 
         progress_token = generation.set_progress_reporter(
-            lambda message: events.put({"type": "chunk", "message": message})
+            lambda message: events.put({
+                "type": "chunk",
+                "message": message,
+                "providers": provider_status(),
+            })
         )
         try:
             for chunk in graph.stream(final_state, {"recursion_limit": 50}):
@@ -189,12 +194,15 @@ def _run_workflow_thread(run_id: str, state: Dict[str, Any]) -> None:
 
 @app.get("/api/health")
 def health() -> Dict[str, Any]:
+    from llm_client import provider_status
+
     return {
         "ok": True,
         "gemini": bool(os.getenv("GEMINI_API_KEY")),
         "groq": bool(os.getenv("GROQ_API_KEY")),
         "openrouter": bool(os.getenv("OPENROUTER_API_KEY")),
         "model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
+        "providers": provider_status(),
     }
 
 
