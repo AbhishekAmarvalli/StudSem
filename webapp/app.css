@@ -606,6 +606,10 @@ details.advanced h3:first-child { margin-top: 0; }
 
 .warn-feed { margin-top: 1rem; display: grid; gap: .45rem; }
 
+/* Run-level warnings, e.g. a paper shorter than its pattern, kept visible in
+   the results view instead of only in the progress panel. */
+.result-warnings { margin-top: .9rem; display: grid; gap: .45rem; }
+
 .warn {
   border: var(--line-thin);
   background: var(--yellow);

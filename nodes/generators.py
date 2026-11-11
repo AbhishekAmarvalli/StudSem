@@ -4,6 +4,7 @@ Only the ones selected by the user are run.
 """
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import re
@@ -97,6 +98,59 @@ def _expected_section_questions(section: str) -> int:
             if count > 0:
                 return count
     return 0
+
+
+def _section_label(spec: str) -> str:
+    """'A: 7 x 2 marks' and 'Section A' both name section A."""
+    head = str(spec).split(":", 1)[0].strip()
+    match = re.search(r"([A-Za-z]+)\s*$", head)
+    return (match.group(1) if match else head).strip()
+
+
+def _sections_named_in_feedback(feedback: str, sections: List[str]) -> set:
+    named = set()
+    for spec in sections:
+        label = _section_label(spec)
+        if not label:
+            continue
+        if re.search(rf"\bSection\s+{re.escape(label)}\b", feedback, re.I):
+            named.add(label.lower())
+        elif re.search(rf"\b{re.escape(label)}\d+\b", feedback):
+            named.add(label.lower())
+    return named
+
+
+def _reusable_sections(
+    state: Dict[str, Any], sections: List[str], previous: Any
+) -> Dict[str, MockSection]:
+    """Keep sections the examiner did not complain about instead of rebuilding them."""
+    feedback = (state.get("_examiner_feedback") or "").strip()
+    if not feedback or not previous or not getattr(previous, "sections", None):
+        return {}
+    named = _sections_named_in_feedback(feedback, sections)
+    if not named:
+        return {}
+    reusable = {}
+    for section in previous.sections:
+        key = section.name.strip().lower()
+        if key not in named:
+            reusable[key] = copy.deepcopy(section)
+    logger.info(
+        "Reusing mock paper sections %s; regenerating %s",
+        sorted(reusable), sorted(named),
+    )
+    return reusable
+
+
+def _short_paper_warnings(
+    paper: MockPaperOutput, pattern: Dict[str, Any], sections: List[str]
+) -> List[str]:
+    expected = sum(_expected_section_questions(item) for item in sections)
+    expected = expected or _planned_question_count(pattern)
+    actual = sum(len(item.questions) for item in paper.sections)
+    if expected and actual < expected:
+        return [f"Mock paper: only {actual} of {expected} questions were generated."]
+    return []
 
 
 def _next_question_id(current: str, used: set) -> str:
@@ -205,7 +259,10 @@ def generate_mock_paper(
         return _generate_mock_paper_by_section(state, base_prompt, sections, warnings)
     _report("Writing mock paper")
     raw = call_llm(system_prompt=system_prompt(), user_prompt=base_prompt)
-    return parse_json_response(raw, MockPaperOutput, retry_prompt=base_prompt)
+    paper = parse_json_response(raw, MockPaperOutput, retry_prompt=base_prompt)
+    if warnings is not None:
+        warnings.extend(_short_paper_warnings(paper, pattern, sections))
+    return paper
 
 
 def _generate_mock_paper_by_section(
@@ -219,8 +276,17 @@ def _generate_mock_paper_by_section(
     merged: List[MockSection] = []
     header: Dict[str, Any] = {}
     failures: List[str] = []
+    previous = state.get("mock_paper")
+    reusable = _reusable_sections(state, sections, previous)
+    if reusable and previous is not None:
+        header = dict(getattr(previous, "header", {}) or {})
 
     for index, section in enumerate(sections, 1):
+        kept = reusable.get(_section_label(section).lower())
+        if kept is not None:
+            _report(f"Keeping mock paper section {index}/{len(sections)}: {section}")
+            merged.append(kept)
+            continue
         _report(f"Writing mock paper section {index}/{len(sections)}: {section}")
         prompt = (
             base_prompt
@@ -247,14 +313,16 @@ def _generate_mock_paper_by_section(
             "Mock paper: " + "; ".join(failures) + " — those section(s) are missing."
         )
 
-    expected_total = sum(_expected_section_questions(item) for item in sections)
-    actual_total = sum(len(item.questions) for item in merged)
-    if expected_total and actual_total < expected_total:
-        notes.append(
-            f"Mock paper: only {actual_total} of {expected_total} questions were generated."
-        )
+    if not header and previous is not None:
+        header = dict(getattr(previous, "header", {}) or {})
 
     pattern = state.get("exam_pattern", {}) or {}
+    notes.extend(
+        _short_paper_warnings(
+            MockPaperOutput(header=header, sections=merged, marks_check={}),
+            pattern, sections,
+        )
+    )
     total = sum(int(getattr(q, "marks", 0) or 0) for s in merged for q in s.questions)
     marks_check: Dict[str, Any] = {"total": total, "computed": "per-section"}
     try:

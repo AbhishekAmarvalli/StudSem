@@ -761,7 +761,13 @@
     renderBank($('[data-panel="bank"]'), result);
     renderDownloads(result);
 
-    (result.warnings || []).forEach(addWarning);
+    const resultWarnings = result.warnings || [];
+    const warningBox = $("#result-warnings");
+    warningBox.innerHTML = resultWarnings
+      .map((warning) => `<div class="warn">${esc(warning)}</div>`)
+      .join("");
+    warningBox.hidden = resultWarnings.length === 0;
+    resultWarnings.forEach(addWarning);
 
     const available = {
       topics: result.topics.length > 0,
