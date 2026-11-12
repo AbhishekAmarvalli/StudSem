@@ -59,8 +59,8 @@ def test_dark_theme_text_is_readable():
         "engine ready": (_token(dark, "blue"), _token(dark, "blue-soft")),
         "engine in use": (_token(dark, "green"), _token(dark, "green-soft")),
         "engine paused": (_token(dark, "red"), _token(dark, "red-soft")),
-        "placeholder": ("#b3ada0", "#1b1b1b"),
-        "link hover on yellow": ("#0a0a0a", "#ffe600"),
+        "placeholder": ("#9d978a", _token(dark, "white")),
+        "link hover on yellow": ("#0a0a0a", _token(dark, "yellow")),
     }, "dark")
 
 

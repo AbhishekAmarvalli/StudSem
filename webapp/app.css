@@ -24,10 +24,14 @@
   --green-soft: #d7f8c8;
   --blue-soft: #d8e8ff;
 
-  --line: 4px solid var(--ink);
-  --line-thin: 3px solid var(--ink);
-  --shadow: 8px 8px 0 var(--ink);
-  --shadow-sm: 5px 5px 0 var(--ink);
+  /* Edge and shadow inks are separate so the dark theme can dim its
+     frames and shadows without lightening body text. */
+  --edge-ink: var(--ink);
+  --shadow-ink: var(--ink);
+  --line: 4px solid var(--edge-ink);
+  --line-thin: 3px solid var(--edge-ink);
+  --shadow: 8px 8px 0 var(--shadow-ink);
+  --shadow-sm: 5px 5px 0 var(--shadow-ink);
 
   --font-head: 'Archivo Black', 'Arial Black', sans-serif;
   --font-body: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
@@ -125,7 +129,7 @@ code, .mono { font-family: var(--font-mono); }
   width: 46px; height: 46px;
   background: var(--yellow);
   border: var(--line);
-  box-shadow: 4px 4px 0 var(--ink);
+  box-shadow: 4px 4px 0 var(--shadow-ink);
   font-family: var(--font-head);
   font-size: 1rem;
 }
@@ -167,7 +171,7 @@ code, .mono { font-family: var(--font-mono); }
   font-size: .66rem;
   letter-spacing: .1em;
   text-transform: uppercase;
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
 }
 
 .pill.ok { background: var(--lime); }
@@ -201,21 +205,21 @@ code, .mono { font-family: var(--font-mono); }
 .btn:hover:not(:disabled) {
   background: var(--yellow);
   transform: translate(-2px, -2px);
-  box-shadow: 8px 8px 0 var(--ink);
+  box-shadow: 8px 8px 0 var(--shadow-ink);
 }
 
 .btn:active:not(:disabled) {
   transform: translate(3px, 3px);
-  box-shadow: 2px 2px 0 var(--ink);
+  box-shadow: 2px 2px 0 var(--shadow-ink);
 }
 
 .btn.primary { background: var(--pink); }
 .btn.primary:hover:not(:disabled) { background: var(--yellow); }
 .btn.cyan { background: var(--cyan); }
 .btn.lime { background: var(--lime); }
-.btn.sm { padding: .45rem .75rem; font-size: .7rem; box-shadow: 3px 3px 0 var(--ink); }
+.btn.sm { padding: .45rem .75rem; font-size: .7rem; box-shadow: 3px 3px 0 var(--shadow-ink); }
 .btn.block { width: 100%; }
-.btn:disabled { opacity: .62; cursor: not-allowed; box-shadow: 3px 3px 0 var(--ink); }
+.btn:disabled { opacity: .62; cursor: not-allowed; box-shadow: 3px 3px 0 var(--shadow-ink); }
 
 /* ── View tabs ───────────────────────────────────────────────────────────── */
 
@@ -239,7 +243,7 @@ code, .mono { font-family: var(--font-mono); }
   letter-spacing: .1em;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
 }
 
 .viewtab:hover { background: var(--yellow); }
@@ -289,7 +293,7 @@ main {
   background: var(--cyan);
   font-family: var(--font-head);
   font-size: 1.05rem;
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
 }
 
 .step:nth-of-type(2) .step-num { background: var(--yellow); }
@@ -387,7 +391,7 @@ select {
   letter-spacing: .06em;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
   transition: background .12s ease, transform .12s ease;
 }
 
@@ -397,7 +401,7 @@ select {
   background: var(--ink);
   color: var(--paper);
   transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 var(--ink);
+  box-shadow: 1px 1px 0 var(--shadow-ink);
 }
 
 .chip input:focus-visible + span { outline: 3px solid var(--pink); outline-offset: 2px; }
@@ -456,7 +460,7 @@ select {
   font-size: 1rem;
   line-height: 1;
   cursor: pointer;
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
 }
 
 .icon-btn:hover { background: var(--pink); }
@@ -477,7 +481,7 @@ select {
   border: var(--line-thin);
   background: var(--white);
   cursor: pointer;
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
 }
 
 .output:hover { background: #fff9d1; }
@@ -664,7 +668,7 @@ details.advanced h3:first-child { margin-top: 0; }
   background: var(--yellow);
   padding: .5rem .65rem;
   font-size: .82rem;
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
 }
 
 /* ── Results ─────────────────────────────────────────────────────────────── */
@@ -708,7 +712,7 @@ details.advanced h3:first-child { margin-top: 0; }
   letter-spacing: .08em;
   text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 3px 3px 0 var(--ink);
+  box-shadow: 3px 3px 0 var(--shadow-ink);
 }
 
 .tab:hover { background: #fff9d1; }
@@ -882,50 +886,56 @@ footer .foot-brand { font-family: var(--font-head); font-size: 1.1rem; }
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --ink: #f4efe2;
-  --paper: #121212;
-  --white: #1b1b1b;
-  --muted: #c8c2b4;
+  /* Warm charcoal instead of near-black, with softened ink and muted
+     accents: keeps AA contrast without the glare of white-on-black. */
+  --ink: #d5cec0;
+  --paper: #1a1917;
+  --white: #232220;
+  --muted: #aaa497;
 
-  --red: #ff9aa8;
-  --green: #8ff0b0;
-  --blue: #9cc4ff;
-  --red-soft: #3a1218;
-  --green-soft: #12301c;
-  --blue-soft: #10233d;
+  --yellow: #d9c46b;
+  --pink: #d98aab;
+  --cyan: #93c6cf;
+  --lime: #b0d187;
+  --purple: #b3a8d9;
 
-  --line: 4px solid var(--ink);
-  --line-thin: 3px solid var(--ink);
-  --shadow: 8px 8px 0 var(--ink);
-  --shadow-sm: 5px 5px 0 var(--ink);
+  --red: #e6a0a4;
+  --green: #a6d6ac;
+  --blue: #a3c1e3;
+  --red-soft: #35201f;
+  --green-soft: #1e2b21;
+  --blue-soft: #1d2734;
+
+  --edge-ink: #7a7468;
+  --shadow-ink: #0d0c0b;
 }
 
 html[data-theme="dark"] body {
   background-image:
-    linear-gradient(to right, rgba(244, 239, 226, .07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(244, 239, 226, .07) 1px, transparent 1px);
+    linear-gradient(to right, rgba(220, 214, 200, .05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(220, 214, 200, .05) 1px, transparent 1px);
 }
 
 html[data-theme="dark"] input,
 html[data-theme="dark"] select,
 html[data-theme="dark"] textarea {
-  box-shadow: inset 3px 3px 0 rgba(244, 239, 226, .06);
+  box-shadow: inset 3px 3px 0 rgba(220, 214, 200, .05);
   color-scheme: dark;
 }
 
 html[data-theme="dark"] input::placeholder,
-html[data-theme="dark"] textarea::placeholder { color: #b3ada0; }
+html[data-theme="dark"] textarea::placeholder { color: #9d978a; }
 
 html[data-theme="dark"] .chip span:hover,
 html[data-theme="dark"] .output:hover,
 html[data-theme="dark"] details.advanced > summary:hover,
-html[data-theme="dark"] .tab:hover { background: #2c2a12; }
+html[data-theme="dark"] .tab:hover { background: #2a2820; }
 
 html[data-theme="dark"] .dropzone:hover,
-html[data-theme="dark"] .dropzone.hot { background: #1e2a14; }
+html[data-theme="dark"] .dropzone.hot { background: #212b1d; }
 
-html[data-theme="dark"] .viva-panel { background: #14242b; }
-html[data-theme="dark"] table.plan tr:nth-child(even) td { background: #211e16; }
+html[data-theme="dark"] .viva-panel { background: #1c262a; }
+html[data-theme="dark"] table.plan tr:nth-child(even) td { background: #242119; }
 
 /* Bright accent fills need dark ink text, not the light --ink. */
 html[data-theme="dark"] .pill.ok,
@@ -955,7 +965,7 @@ html[data-theme="dark"] .result-meta span { color: var(--ink); }
 /* The idle pill sits on --paper, which is dark in this theme. */
 html[data-theme="dark"] .pill.idle { background: var(--white); color: var(--ink); }
 
-html[data-theme="dark"] .stage.done .box { background: #0a0a0a; color: var(--lime); }
+html[data-theme="dark"] .stage.done .box { background: #141311; color: var(--lime); }
 
 /* Plain links and selected output cards sit on bright fills. */
 html[data-theme="dark"] a:hover { color: #0a0a0a; }
