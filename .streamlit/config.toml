@@ -16,9 +16,10 @@ secondaryBackgroundColor = "#ffffff" # cards, sidebar, inputs
 textColor = "#0a0a0a"               # ink (contrast 18:1 on cream)
 
 [theme.dark]
-backgroundColor = "#121212"         # dark paper
-secondaryBackgroundColor = "#1b1b1b" # dark cards, sidebar, inputs
-textColor = "#f4efe2"               # warm off-white ink (contrast 14:1)
+primaryColor = "#d9c46b"            # muted mustard accent
+backgroundColor = "#1a1917"         # warm charcoal paper
+secondaryBackgroundColor = "#232220" # dark cards, sidebar, inputs
+textColor = "#d5cec0"               # soft warm ink (contrast 12:1)
 
 [client]
 toolbarMode = "minimal"             # fewer competing controls (Occam's razor)

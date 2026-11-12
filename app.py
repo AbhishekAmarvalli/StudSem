@@ -129,15 +129,16 @@ def _sidebar() -> None:
         has_groq = bool(os.getenv("GROQ_API_KEY"))
         has_openrouter = bool(os.getenv("OPENROUTER_API_KEY"))
 
+        colors = ui.theme_palette()
         st.markdown(
             ui.badge("Gemini " + ("ready" if has_gemini else "missing"),
-                     "#c6ff4d" if has_gemini else "#ff5da2")
+                     colors["lime"] if has_gemini else colors["pink"])
             + " "
             + ui.badge("Groq " + ("ready" if has_groq else "optional"),
-                       "#c6ff4d" if has_groq else "#e6e1d6")
+                       colors["lime"] if has_groq else colors["idle-soft"])
             + " "
             + ui.badge("Fallback " + ("ready" if has_openrouter else "off"),
-                       "#c6ff4d" if has_openrouter else "#e6e1d6"),
+                       colors["lime"] if has_openrouter else colors["idle-soft"]),
             unsafe_allow_html=True,
         )
         st.caption(f"Model: {os.getenv('GEMINI_MODEL', 'gemini-3.8-flash')}")
@@ -145,10 +146,10 @@ def _sidebar() -> None:
 
         labels = {"ready": "ready", "paused": "paused", "preferred": "in use", "off": "no key"}
         styles = {
-            "ready": ("#d8e8ff", "#0b4f9c"),
-            "preferred": ("#d7f8c8", "#126b2f"),
-            "paused": ("#ffd6dc", "#b00020"),
-            "off": ("#e6e1d6", "#3f3f3f"),
+            "ready": (colors["blue-soft"], colors["blue"]),
+            "preferred": (colors["green-soft"], colors["green"]),
+            "paused": (colors["red-soft"], colors["red"]),
+            "off": (colors["idle-soft"], colors["off-ink"]),
         }
         chips = []
         for provider in provider_status():
@@ -409,7 +410,7 @@ def _step_prefs() -> None:
         )
         outputs = list(PRESETS[st.session_state.preset])
         st.markdown(
-            " ".join(ui.badge(item.replace("_", " ").upper(), "#ffffff") for item in sorted(set(outputs))),
+            " ".join(ui.badge(item.replace("_", " ").upper()) for item in sorted(set(outputs))),
             unsafe_allow_html=True,
         )
 

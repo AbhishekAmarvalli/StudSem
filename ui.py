@@ -27,6 +27,43 @@ PALETTE = {
     "pink": "#ff5da2",
     "cyan": "#5ee7ff",
     "lime": "#c6ff4d",
+    "purple": "#b39dff",
+    "red": "#b00020",
+    "green": "#126b2f",
+    "blue": "#0b4f9c",
+    "red-soft": "#ffd6dc",
+    "green-soft": "#d7f8c8",
+    "blue-soft": "#d8e8ff",
+    "plain": "#ffffff",
+    "done-soft": "#e4f8c4",
+    "idle-soft": "#e6e1d6",
+    "off-ink": "#3f3f3f",
+    "on-accent": "#0a0a0a",
+}
+
+# Same roles, softened for dark mode: warm charcoal surfaces, muted accents
+# and no near-white fills, so inline badges stop glowing against the page.
+DARK_PALETTE = {
+    "ink": "#d5cec0",
+    "paper": "#1a1917",
+    "card": "#232220",
+    "muted": "#aaa497",
+    "yellow": "#d9c46b",
+    "pink": "#d98aab",
+    "cyan": "#93c6cf",
+    "lime": "#b0d187",
+    "purple": "#b3a8d9",
+    "red": "#e6a0a4",
+    "green": "#a6d6ac",
+    "blue": "#a3c1e3",
+    "red-soft": "#35201f",
+    "green-soft": "#1e2b21",
+    "blue-soft": "#1d2734",
+    "plain": "#232220",
+    "done-soft": "#1e2b21",
+    "idle-soft": "#2a2823",
+    "off-ink": "#aaa497",
+    "on-accent": "#0a0a0a",
 }
 
 # Principle 8 (similarity): one colour per priority label, everywhere.
@@ -37,6 +74,13 @@ LABEL_STYLES: Dict[str, Tuple[str, str, str]] = {
     "OPTIONAL": ("#e6e1d6", "#0a0a0a", "○ OPTIONAL"),
 }
 
+# Same labels on dark: muted fills with dark ink, no neon blocks.
+LABEL_STYLES_DARK: Dict[str, Tuple[str, str, str]] = {
+    "MUST STUDY": ("#e6a0a4", "#0a0a0a", "▲ MUST STUDY"),
+    "SHOULD STUDY": ("#d9c46b", "#0a0a0a", "● SHOULD STUDY"),
+    "OPTIONAL": ("#2a2823", "#d5cec0", "○ OPTIONAL"),
+}
+
 CSS = """
 <style>
 :root {
@@ -44,21 +88,29 @@ CSS = """
   --paper: #fdf8ec;
   --card: #ffffff;
   --muted: #4a4a4a;
-  --line: 3px solid var(--ink);
-  --shadow: 6px 6px 0 var(--ink);
+  --edge-ink: var(--ink);
+  --shadow-ink: var(--ink);
+  --line: 3px solid var(--edge-ink);
+  --shadow: 6px 6px 0 var(--shadow-ink);
   --yellow: #ffe600;
   --pink: #ff5da2;
   --cyan: #5ee7ff;
   --lime: #c6ff4d;
   --radius: 2px;
 }
-/* Principle 1 + accessibility: a dark-mode variant keeps 4.5:1 contrast. */
+/* Principle 1 + accessibility: a dark-mode variant keeps 4.5:1 contrast.
+   Warm charcoal + muted ink and accents so it does not glare. */
 html[data-theme="dark"] {
-  --ink: #f4efe2;
-  --paper: #121212;
-  --card: #1b1b1b;
-  --muted: #c8c2b4;
-  --shadow: 6px 6px 0 #f4efe2;
+  --ink: #d5cec0;
+  --paper: #1a1917;
+  --card: #232220;
+  --muted: #aaa497;
+  --edge-ink: #7a7468;
+  --shadow-ink: #0d0c0b;
+  --yellow: #d9c46b;
+  --pink: #d98aab;
+  --cyan: #93c6cf;
+  --lime: #b0d187;
 }
 
 html, body, .stApp, [data-testid="stAppViewContainer"] {
@@ -104,7 +156,7 @@ p, li, label, span, div { color: inherit; }
 .ss-step {
   border: var(--line); background: var(--card); padding: .35rem .6rem;
   font-size: .72rem; font-weight: 700; letter-spacing: .04em;
-  box-shadow: 3px 3px 0 var(--ink); color: var(--ink) !important;
+  box-shadow: 3px 3px 0 var(--shadow-ink); color: var(--ink) !important;
 }
 .ss-step[data-state="done"] { background: var(--lime); }
 .ss-step[data-state="current"] { background: var(--yellow); }
@@ -131,7 +183,7 @@ input[type="text"], input[type="number"], input[type="password"], textarea,
 [data-baseweb="select"] > div, [data-testid="stDateInput"] input {
   background: var(--paper) !important;
   color: var(--ink) !important;
-  border: 2px solid var(--ink) !important;
+  border: 2px solid var(--edge-ink) !important;
   border-radius: var(--radius) !important;
   font-size: .92rem !important;
 }
@@ -149,7 +201,7 @@ input:focus, textarea:focus, [data-baseweb="select"] > div:focus-within {
   border-radius: var(--radius) !important;
   background: var(--card) !important;
   color: var(--ink) !important;
-  box-shadow: 4px 4px 0 var(--ink) !important;
+  box-shadow: 4px 4px 0 var(--shadow-ink) !important;
   font-weight: 700 !important;
   font-size: .82rem !important;
   letter-spacing: .06em !important;
@@ -160,10 +212,10 @@ input:focus, textarea:focus, [data-baseweb="select"] > div:focus-within {
 .stButton > button:hover, .stDownloadButton > button:hover, .stFormSubmitButton > button:hover {
   background: var(--yellow) !important;
   transform: translate(-1px, -1px);
-  box-shadow: 6px 6px 0 var(--ink) !important;
+  box-shadow: 6px 6px 0 var(--shadow-ink) !important;
 }
 .stButton > button:active, .stDownloadButton > button:active {
-  transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink) !important;
+  transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--shadow-ink) !important;
 }
 /* Principle 13: exactly one filled accent per screen — the primary action. */
 .stButton > button[kind="primary"], .stFormSubmitButton > button {
@@ -172,13 +224,13 @@ input:focus, textarea:focus, [data-baseweb="select"] > div:focus-within {
   padding: .75rem 1rem !important;
 }
 .stButton > button:disabled, .stDownloadButton > button:disabled {
-  opacity: .5 !important; box-shadow: 2px 2px 0 var(--ink) !important;
+  opacity: .5 !important; box-shadow: 2px 2px 0 var(--shadow-ink) !important;
 }
 
 /* Principle 4: tabs behave like familiar tabs. */
 [data-testid="stTabs"] [role="tablist"] { gap: .4rem; border-bottom: none; }
 [data-testid="stTabs"] [role="tab"] {
-  border: 2px solid var(--ink) !important; background: var(--card) !important;
+  border: 2px solid var(--edge-ink) !important; background: var(--card) !important;
   padding: .35rem .7rem !important; border-radius: var(--radius) !important;
   font-size: .75rem !important; font-weight: 700 !important;
 }
@@ -188,7 +240,7 @@ input:focus, textarea:focus, [data-baseweb="select"] > div:focus-within {
 
 /* Principle 10: summary strip reads as one row of stats. */
 [data-testid="stMetric"] {
-  border: var(--line); background: var(--card); box-shadow: 4px 4px 0 var(--ink);
+  border: var(--line); background: var(--card); box-shadow: 4px 4px 0 var(--shadow-ink);
   padding: .6rem .8rem;
 }
 [data-testid="stMetricValue"] { font-size: 1.6rem !important; color: var(--ink) !important; }
@@ -196,7 +248,7 @@ input:focus, textarea:focus, [data-baseweb="select"] > div:focus-within {
 
 /* Principle 5 + 11: expanders keep long lists manageable. */
 [data-testid="stExpander"] {
-  border: 2px solid var(--ink) !important; border-radius: var(--radius) !important;
+  border: 2px solid var(--edge-ink) !important; border-radius: var(--radius) !important;
   background: var(--card) !important;
 }
 [data-testid="stExpander"] summary { font-weight: 700 !important; font-size: .88rem !important; }
@@ -205,7 +257,7 @@ input:focus, textarea:focus, [data-baseweb="select"] > div:focus-within {
 /* Principle 13 + 20: callouts are distinct from content. */
 [data-testid="stAlert"] {
   border: var(--line) !important; border-radius: var(--radius) !important;
-  box-shadow: 4px 4px 0 var(--ink); color: var(--ink) !important;
+  box-shadow: 4px 4px 0 var(--shadow-ink); color: var(--ink) !important;
 }
 [data-testid="stAlert"] p { color: var(--ink) !important; }
 div[data-testid="stAlertContentWarning"] { background: #fff3bf !important; }
@@ -214,35 +266,35 @@ div[data-testid="stAlertContentSuccess"] { background: #e4f8c4 !important; }
 div[data-testid="stAlertContentInfo"] { background: #d9f6ff !important; }
 
 /* Principle 15: progress is visible and chunky. */
-[data-testid="stProgress"] > div { background: var(--card) !important; border: 2px solid var(--ink); }
+[data-testid="stProgress"] > div { background: var(--card) !important; border: 2px solid var(--edge-ink); }
 [data-testid="stProgress"] > div > div > div > div { background: var(--ink) !important; }
 
 /* Principle 1: file uploader gets the same card treatment. */
 [data-testid="stFileUploaderDropzone"] {
-  background: var(--paper) !important; border: 3px dashed var(--ink) !important;
+  background: var(--paper) !important; border: 3px dashed var(--edge-ink) !important;
 }
 [data-testid="stFileUploaderDropzone"] button {
-  border: 2px solid var(--ink) !important; background: var(--cyan) !important;
+  border: 2px solid var(--edge-ink) !important; background: var(--cyan) !important;
   color: #0a0a0a !important; border-radius: var(--radius) !important;
 }
 
 /* Dataframes stay legible (Principle 4: tables for data). */
-[data-testid="stDataFrame"] { border: 2px solid var(--ink) !important; }
+[data-testid="stDataFrame"] { border: 2px solid var(--edge-ink) !important; }
 
 /* Principle 8: identical badge chips for the same concept everywhere. */
 .ss-badge {
-  display: inline-block; border: 2px solid var(--ink); padding: .05rem .4rem;
+  display: inline-block; border: 2px solid var(--edge-ink); padding: .05rem .4rem;
   font-size: .64rem; font-weight: 700; letter-spacing: .05em;
   text-transform: uppercase; white-space: nowrap;
 }
 
 /* Principle 9: one card per topic, all of its facts inside. */
-.ss-topic { border: 2px solid var(--ink); background: var(--card); padding: .7rem .8rem; margin: .4rem 0; }
+.ss-topic { border: 2px solid var(--edge-ink); background: var(--card); padding: .7rem .8rem; margin: .4rem 0; }
 .ss-topic-head { display: flex; justify-content: space-between; gap: .8rem; flex-wrap: wrap; align-items: baseline; }
 .ss-topic-title { font-weight: 700; font-size: .95rem; }
-.ss-bar { height: 12px; border: 2px solid var(--ink); background: var(--paper); margin: .45rem 0; }
+.ss-bar { height: 12px; border: 2px solid var(--edge-ink); background: var(--paper); margin: .45rem 0; }
 .ss-bar > span { display: block; height: 100%; background: var(--ink); }
-.ss-empty { border: 3px dashed var(--ink); padding: .9rem; text-align: center; color: var(--muted); font-size: .85rem; }
+.ss-empty { border: 3px dashed var(--edge-ink); padding: .9rem; text-align: center; color: var(--muted); font-size: .85rem; }
 
 /* Sidebar (Principle 16: API status first, help last). */
 [data-testid="stSidebar"] { background: var(--card) !important; border-right: var(--line); }
@@ -254,6 +306,12 @@ div[data-testid="stAlertContentInfo"] { background: #d9f6ff !important; }
 @media (max-width: 640px) {
   .block-container { padding: 1rem .8rem 3rem !important; }
   [data-testid="stMetricValue"] { font-size: 1.3rem !important; }
+}
+/* Marks headline: lime sticker in both themes, with tokenised borders. */
+.marks-big {
+  border: var(--line); background: var(--lime); color: var(--ink);
+  padding: .7rem 1rem; font-size: 2.2rem; font-weight: 700;
+  box-shadow: var(--shadow);
 }
 /* Generation chunk in flight: a small spinner beside the current chunk label. */
 .ss-chunk-spin {
@@ -276,23 +334,28 @@ div[data-testid="stAlertContentInfo"] { background: #d9f6ff !important; }
 DARK_CSS = """
 <style>
 :root {
-  --ink: #f4efe2;
-  --paper: #121212;
-  --card: #1b1b1b;
-  --muted: #c8c2b4;
-  --line: 3px solid var(--ink);
-  --shadow: 6px 6px 0 var(--ink);
+  --ink: #d5cec0;
+  --paper: #1a1917;
+  --card: #232220;
+  --muted: #aaa497;
+  --edge-ink: #7a7468;
+  --shadow-ink: #0d0c0b;
+  --yellow: #d9c46b;
+  --pink: #d98aab;
+  --cyan: #93c6cf;
+  --lime: #b0d187;
 }
 
-/* Alerts use dark tints so the (now light) body text stays readable. */
-div[data-testid="stAlertContentWarning"] { background: #3a3410 !important; }
-div[data-testid="stAlertContentError"]   { background: #4a1d24 !important; }
-div[data-testid="stAlertContentSuccess"] { background: #23380f !important; }
-div[data-testid="stAlertContentInfo"]    { background: #12323a !important; }
+/* Alerts use soft dark tints so the (now light) body text stays readable. */
+div[data-testid="stAlertContentWarning"] { background: #2f2a19 !important; }
+div[data-testid="stAlertContentError"]   { background: #33201f !important; }
+div[data-testid="stAlertContentSuccess"] { background: #1e2b21 !important; }
+div[data-testid="stAlertContentInfo"]    { background: #1d2734 !important; }
 
 /* Light accent fills need dark ink text, not the light --ink. */
 .ss-step[data-state="done"],
 .ss-step[data-state="current"],
+.marks-big,
 .stButton > button:hover,
 .stDownloadButton > button:hover,
 .stFormSubmitButton > button:hover,
@@ -316,6 +379,11 @@ def _is_dark_theme() -> bool:
     except Exception:  # noqa: BLE001 - older Streamlit / bare test mode
         return False
     return (theme_type or "").lower() == "dark"
+
+
+def theme_palette() -> Dict[str, str]:
+    """Accent/surface colours for the viewer's active Streamlit theme."""
+    return {**PALETTE, **DARK_PALETTE} if _is_dark_theme() else dict(PALETTE)
 
 
 def inject_css() -> None:
@@ -345,8 +413,22 @@ def stepper(current: int, labels: Sequence[str]) -> None:
     st.progress(min(1.0, max(0.0, (current - 1) / len(labels))), text=f"Step {current} of {len(labels)}")
 
 
-def badge(text: str, background: str = "#ffffff", color: str = "#0a0a0a") -> str:
+def _text_on(background: str) -> str:
+    """Dark ink on light fills, light ink on dark fills (WCAG-safe default)."""
+    try:
+        rgb = [int(background.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    except ValueError:
+        return theme_palette()["on-accent"]
+    linear = [v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4 for v in rgb]
+    luminance = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+    return "#0a0a0a" if luminance > 0.45 else DARK_PALETTE["ink"]
+
+
+def badge(text: str, background: str = "", color: str = "") -> str:
     """Inline chip. Always carries text, never colour alone (accessibility)."""
+    colors = theme_palette()
+    background = background or colors["plain"]
+    color = color or _text_on(background)
     return (
         f'<span class="ss-badge" style="background:{background};color:{color}">'
         f"{text}</span>"
@@ -355,7 +437,8 @@ def badge(text: str, background: str = "#ffffff", color: str = "#0a0a0a") -> str
 
 def priority_badge(label: str) -> str:
     """Same colour + text for a priority label on screen, PDF and dashboard (Principle 8)."""
-    background, color, text = LABEL_STYLES.get(label or "OPTIONAL", LABEL_STYLES["OPTIONAL"])
+    styles = LABEL_STYLES_DARK if _is_dark_theme() else LABEL_STYLES
+    background, color, text = styles.get(label or "OPTIONAL", styles["OPTIONAL"])
     return badge(text, background, color)
 
 
@@ -411,8 +494,9 @@ def checklist(title: str, checks: Dict[str, bool]) -> None:
     Upload step shows what is still missing so the goal feels close
     (Principle 15). Ticks are text, not colour-only.
     """
+    colors = theme_palette()
     chips = " ".join(
-        badge(f"{'✓' if done else '✗'} {label}", "#e4f8c4" if done else "#ffffff")
+        badge(f"{'✓' if done else '✗'} {label}", colors["done-soft"] if done else colors["plain"])
         for label, done in checks.items()
     )
     st.markdown(
@@ -539,13 +623,14 @@ def days_left(exam_date: Optional[_dt.date]) -> Optional[int]:
 
 
 def file_role_badge(role: str) -> str:
+    colors = theme_palette()
     labels = {
-        "syllabus": ("SYLLABUS", "#5ee7ff"),
-        "past_paper": ("PAST PAPER", "#ffe600"),
-        "teacher_priority": ("TEACHER", "#ff5da2"),
-        "notes": ("NOTES", "#c6ff4d"),
-        "pattern": ("PATTERN", "#b39dff"),
-        "auto": ("AUTO", "#ffffff"),
+        "syllabus": ("SYLLABUS", colors["cyan"]),
+        "past_paper": ("PAST PAPER", colors["yellow"]),
+        "teacher_priority": ("TEACHER", colors["pink"]),
+        "notes": ("NOTES", colors["lime"]),
+        "pattern": ("PATTERN", colors["purple"]),
+        "auto": ("AUTO", colors["plain"]),
     }
     text, colour = labels.get(role, labels["auto"])
     return badge(text, colour)

@@ -121,9 +121,7 @@ result = st.session_state.get("grader_result")
 if result is not None:
     st.markdown("## Result")
     st.markdown(
-        f'<div class="marks-big" style="border:3px solid #0a0a0a;background:#c6ff4d;'
-        f'padding:.7rem 1rem;font-size:2.2rem;box-shadow:6px 6px 0 #0a0a0a">'
-        f"{result.marks_awarded} / {result.out_of} marks</div>",
+        f'<div class="marks-big">{result.marks_awarded} / {result.out_of} marks</div>',
         unsafe_allow_html=True,
     )
 

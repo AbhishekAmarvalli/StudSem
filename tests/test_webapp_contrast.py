@@ -79,6 +79,36 @@ def test_hidden_results_section_stays_hidden():
     assert match, "#results { display:grid } must not leak the empty results UI"
 
 
+def test_streamlit_dark_palette_is_soft_and_readable():
+    from ui import DARK_PALETTE, _text_on
+
+    config = (Path(__file__).resolve().parents[1] / ".streamlit" / "config.toml").read_text(encoding="utf-8")
+    block = re.search(r"^\[theme\.dark\](.*?)(?=^\[|\Z)", config, re.S | re.M).group(1)
+
+    def value(name):
+        return re.search(rf'{name}\s*=\s*"(#[0-9a-fA-F]{{6}})"', block).group(1)
+
+    # config.toml and the injected CSS must not drift apart.
+    assert value("backgroundColor") == DARK_PALETTE["paper"]
+    assert value("secondaryBackgroundColor") == DARK_PALETTE["card"]
+    assert value("textColor") == DARK_PALETTE["ink"]
+
+    _assert_readable({
+        "body": (DARK_PALETTE["ink"], DARK_PALETTE["paper"]),
+        "muted": (DARK_PALETTE["muted"], DARK_PALETTE["card"]),
+        "engine ready": (DARK_PALETTE["blue"], DARK_PALETTE["blue-soft"]),
+        "engine in use": (DARK_PALETTE["green"], DARK_PALETTE["green-soft"]),
+        "engine paused": (DARK_PALETTE["red"], DARK_PALETTE["red-soft"]),
+        "on yellow": ("#0a0a0a", DARK_PALETTE["yellow"]),
+        "on pink": ("#0a0a0a", DARK_PALETTE["pink"]),
+        "on lime": ("#0a0a0a", DARK_PALETTE["lime"]),
+    }, "streamlit dark")
+
+    # Inline badges pick their own ink, so blank/default chips stay readable.
+    assert _text_on(DARK_PALETTE["plain"]) == DARK_PALETTE["ink"]
+    assert _text_on("#ffffff") == "#0a0a0a"
+
+
 def test_engines_have_a_colour_class_per_state():
     for state in ("ready", "preferred", "paused", "off"):
         assert re.search(rf"\.engine\.{state}\s*\{{", CSS), f"missing .engine.{state}"
